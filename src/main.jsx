@@ -54,7 +54,7 @@ const Cell = ({ cell }) => {
                         onInput={e => cell.setValue(e.target.value.trim())}
                         onBlur={() => setEditing(false)}
                         onKeyUp={e => {
-                            if (e.key === 'Escape') {
+                            if (e.key === 'Escape' || e.key === 'Enter') {
                                 setEditing(false)
                             }
                         }}
