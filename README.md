@@ -1,4 +1,6 @@
-# Spectral Sequences Visualizer
+# Spectral Sequences Editor
+
+I don't knot much about spectral sequences, but I maybe this tool will help someone who does.
 
 ## Setup
 
@@ -11,3 +13,10 @@ bun install
 ```bash
 bun dev
 ```
+
+## Build
+
+```bash
+bun run build
+```
+
