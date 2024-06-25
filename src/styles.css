@@ -1,0 +1,179 @@
+*,
+*::before,
+*::after {
+    font-family: inherit;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html,
+body {
+    height: 100%;
+    min-height: 100%;
+}
+
+img {
+    display: block;
+}
+
+/* Typography */
+
+h1,
+h2,
+h3,
+h4 {
+    font-weight: 600;
+}
+
+/* Components */
+
+.h-fill {
+    flex: 1;
+}
+
+button {
+    padding: 0.25rem 0.75rem;
+    color: #333;
+    border: none;
+    border-radius: 0.35rem;
+    background: linear-gradient(to bottom, #f4f4f4, #e0e0e0);
+    box-shadow: 0 1px 0.125rem rgba(0, 0, 0, 0.25);
+    transition: transform 150ms ease;
+
+    cursor: pointer;
+
+    &:hover {
+        background: linear-gradient(to bottom, #f0f0f0, #d8d8d8);
+    }
+}
+
+input[type='text'] {
+    padding: 0.5rem 0.5rem;
+    color: #333;
+    border: none;
+    border-radius: 0.35rem;
+    background: linear-gradient(to bottom, #f8f8f8, #fff, #f8f8f8);
+    box-shadow: 0 1px 0.125rem rgba(0, 0, 0, 0.25);
+    transition: transform 150ms ease;
+
+    width: 10rem;
+
+    &:focus {
+        outline: none;
+    }
+}
+
+/* Structure */
+
+body {
+    font-family: 'Inter', sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    color: #333;
+    background: #fff;
+
+    display: grid;
+    grid-template-rows: auto 1fr;
+
+    touch-action: pan-x pan-y;
+
+    header {
+        padding: 0.25rem 1rem;
+
+        display: flex;
+        align-items: center;
+
+        background: #fff;
+        box-shadow: 0 0 0.5rem rgba(0, 0, 0, 0.1);
+
+        .logo {
+            font-family: 'EB Garamond', serif;
+            font-size: 24px;
+            font-weight: 500;
+        }
+
+        .toolbar {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+
+            .current-page-indicator {
+                width: 3rem;
+            }
+        }
+    }
+
+    main {
+        display: grid;
+
+        width: 100%;
+        height: 100%;
+
+        overflow: hidden;
+
+        position: relative;
+
+        user-select: none;
+
+        z-index: 1;
+
+        .katex-display {
+            margin: 0;
+        }
+
+        & > .cells {
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+
+            transform: translate(calc(1px * var(--pan-x)), calc(1px * var(--pan-y)));
+
+            position: relative;
+
+            pointer-events: none;
+
+            & > .cell {
+                pointer-events: visible;
+
+                position: absolute;
+                left: 50%;
+                top: 50%;
+
+                min-width: 4rem;
+                min-height: 4rem;
+
+                border-radius: 0.5rem;
+
+                padding: 0.5rem;
+
+                transform: translate(calc(-50% + 6rem * var(--x, 0)), calc(-50% - 6rem * var(--y, 0)));
+
+                display: grid;
+                place-content: center;
+                font-size: 24px;
+
+                cursor: pointer;
+
+                &.editing {
+                    z-index: 10;
+                }
+
+                & > .empty-cell {
+                    opacity: 0.5;
+                    font-size: 24px;
+                    font-weight: 200;
+                }
+
+                input[type='text'] {
+                    text-align: center;
+                }
+
+                &:not(.editing):hover {
+                    background: rgba(0, 0, 0, 0.1);
+                }
+            }
+        }
+    }
+}

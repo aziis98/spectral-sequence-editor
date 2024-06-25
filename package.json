@@ -1,0 +1,24 @@
+{
+  "name": "spectral-sequences",
+  "module": "index.ts",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/katex": "^0.16.7",
+    "vite": "^5.3.1",
+    "vite-plugin-solid": "^2.10.2"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@fontsource/eb-garamond": "^5.0.18",
+    "@fontsource/inter": "^5.0.18",
+    "katex": "^0.16.10",
+    "solid-js": "^1.8.17"
+  }
+}
