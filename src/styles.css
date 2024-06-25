@@ -64,6 +64,20 @@ input[type='text'] {
     }
 }
 
+a {
+    color: #333;
+    text-decoration: underline;
+
+    &:hover {
+        color: slateblue;
+        text-decoration: underline solid #dcd6ff;
+    }
+}
+
+code {
+    font-family: monospace;
+}
+
 /* Structure */
 
 body {

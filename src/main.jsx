@@ -108,7 +108,12 @@ const App = () => {
     return (
         <>
             <header>
-                <div class="logo">Spectral Sequences Editor</div>
+                <div class="logo">
+                    <a href="https://github.com/aziis98/spectral-sequence-editor">Spectral Sequence Editor</a>
+                    <sub>
+                        &nbsp; by <a href="https://aziis98.com">@aziis98</a>
+                    </sub>
+                </div>
                 <div class="h-fill"></div>
                 <div class="toolbar">
                     <button onClick={() => setCurrentPage(currentPage() - 1)}>&minus;</button>
