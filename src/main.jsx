@@ -5,6 +5,7 @@ import { pannable } from './hooks.jsx'
 
 import '@fontsource/inter/latin.css'
 import '@fontsource/eb-garamond/latin.css'
+import { BackgroundCanvas } from './arrows.jsx'
 
 const setGridItem = (grid, [r, p, q], value) => {
     grid[`${r} ${p} ${q}`] = value
@@ -25,7 +26,7 @@ const createCell = (r, p, q, initialValue = '') => {
     }
 }
 
-const Cell = ({ cell }) => {
+const Cell = ({ cell, setHoveredCell }) => {
     const [r, p, q] = cell.index
 
     const [editing, setEditing] = createSignal(false)
@@ -34,9 +35,15 @@ const Cell = ({ cell }) => {
         <div
             classList={{ cell: true, editing: editing() }}
             title={`(r, p, q) = (${r}, ${p}, ${q})`}
-            style={{ ['--x']: q, ['--y']: p }}
+            style={{ ['--x']: p, ['--y']: q }}
             onDblClick={() => {
                 setEditing(true)
+            }}
+            onMouseEnter={() => {
+                setHoveredCell([r, p, q])
+            }}
+            onMouseLeave={() => {
+                setHoveredCell(null)
             }}
         >
             <Switch>
@@ -67,14 +74,6 @@ const Cell = ({ cell }) => {
                     <MathText value={cell.value} />
                 </Match>
             </Switch>
-
-            {/* <div class="arrow">
-                <svg width="3rem" height="1rem" viewBox="0 0 48 16" xmlns="http://www.w3.org/2000/svg">
-                    <line x1="0" y1="8" x2="40" y2="8" stroke="black" stroke-width="1" />
-                    <path d="M 40 8 Q 36 8 34 14" stroke="black" stroke-width="1" fill="none" />
-                    <path d="M 40 8 Q 36 8 34 2" stroke="black" stroke-width="1" fill="none" />
-                </svg>
-            </div> */}
         </div>
     )
 }
@@ -84,25 +83,32 @@ const App = () => {
 
     const [grid, setGrid] = createSignal({})
 
+    const [hoveredCell, setHoveredCell] = createSignal(null)
+
     const theGrid = grid()
-    for (let r = -10; r <= 10; r++) {
-        for (let p = -10; p <= 10; p++) {
-            for (let q = -10; q <= 10; q++) {
-                setGridItem(theGrid, [r, p, q], createCell(r, p, q))
+    for (let r = -5; r <= 10; r++) {
+        for (let p = -5; p <= 10; p++) {
+            for (let q = -5; q <= 10; q++) {
+                setGridItem(
+                    theGrid,
+                    [r, p, q],
+                    createCell(r, p, q, Math.abs(r) + Math.abs(p) + Math.abs(q) <= 3 ? String.raw`E_${r}^{${p}, ${q}}` : '')
+                )
             }
         }
     }
     setGrid(theGrid)
 
-    setGrid(prev => ({
-        ...prev,
-        '0 0 0': createCell(0, 0, 0, String.raw`\mathbb Z`),
-        '0 1 0': createCell(0, 1, 0, String.raw`\mathbb Z`),
-        '0 0 1': createCell(0, 0, 1, String.raw`\mathbb Z`),
-        '0 1 1': createCell(0, 1, 1, String.raw`\mathbb Z`),
-        '0 0 2': createCell(0, 0, 2, String.raw`\mathbb Z`),
-        '0 2 0': createCell(0, 2, 0, String.raw`\mathbb Z`),
-    }))
+    // an example
+    // setGrid(prev => ({
+    //     ...prev,
+    //     '0 0 0': createCell(0, 0, 0, String.raw`\mathbb Z`),
+    //     '0 1 0': createCell(0, 1, 0, String.raw`\mathbb Z`),
+    //     '0 0 1': createCell(0, 0, 1, String.raw`\mathbb Z`),
+    //     '0 1 1': createCell(0, 1, 1, String.raw`\mathbb Z`),
+    //     '0 0 2': createCell(0, 0, 2, String.raw`\mathbb Z`),
+    //     '0 2 0': createCell(0, 2, 0, String.raw`\mathbb Z`),
+    // }))
 
     const [lastPan, setLastPan] = createSignal({ x: 0, y: 0 })
     const [pan, setPan] = createSignal({ x: 0, y: 0 })
@@ -124,6 +130,18 @@ const App = () => {
                 </div>
                 <div class="h-fill"></div>
                 <div class="toolbar">
+                    <button
+                        onClick={() => {
+                            for (const key in grid()) {
+                                grid()[key].setValue('')
+                            }
+
+                            setCurrentPage(0)
+                        }}
+                    >
+                        Clear Grid
+                    </button>
+
                     <button onClick={() => setCurrentPage(currentPage() - 1)}>&minus;</button>
                     <div class="current-page-indicator">
                         <MathText value={() => `r = ${currentPage()}`} />
@@ -142,6 +160,7 @@ const App = () => {
                 }}
                 style={{ ['--pan-x']: pan().x.toFixed(2), ['--pan-y']: pan().y.toFixed(2) }}
             >
+                <BackgroundCanvas grid={grid} pan={pan} currentPage={currentPage} hoveredCell={hoveredCell} />
                 <div class="cells">
                     <For
                         each={Object.values(grid()).filter(({ index: [r, _p, _q] }) => {
@@ -149,7 +168,7 @@ const App = () => {
                         })}
                     >
                         {cell => {
-                            return <Cell cell={cell} />
+                            return <Cell cell={cell} setHoveredCell={setHoveredCell} />
                         }}
                     </For>
                 </div>
