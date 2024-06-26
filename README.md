@@ -1,6 +1,6 @@
 # Spectral Sequences Editor
 
-I don't knot much about spectral sequences, but I maybe this tool will help someone who does.
+I don't knot much about spectral sequences, but maybe this tool will help someone who does.
 
 ## Usage
 
