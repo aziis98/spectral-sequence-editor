@@ -91,6 +91,11 @@ body {
     grid-template-rows: auto 1fr;
 
     touch-action: pan-x pan-y;
+    overflow: hidden;
+    position: fixed;
+
+    width: 100dvw;
+    height: 100dvh;
 
     header {
         padding: 0.25rem 1rem;

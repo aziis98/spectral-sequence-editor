@@ -61,12 +61,20 @@ const Cell = ({ cell }) => {
                     />
                 </Match>
                 <Match when={!editing() && cell.value().length === 0}>
-                    <div class="empty-cell">+</div>
+                    <div class="empty-cell">&sdot;</div>
                 </Match>
                 <Match when={!editing()}>
                     <MathText value={cell.value} />
                 </Match>
             </Switch>
+
+            {/* <div class="arrow">
+                <svg width="3rem" height="1rem" viewBox="0 0 48 16" xmlns="http://www.w3.org/2000/svg">
+                    <line x1="0" y1="8" x2="40" y2="8" stroke="black" stroke-width="1" />
+                    <path d="M 40 8 Q 36 8 34 14" stroke="black" stroke-width="1" fill="none" />
+                    <path d="M 40 8 Q 36 8 34 2" stroke="black" stroke-width="1" fill="none" />
+                </svg>
+            </div> */}
         </div>
     )
 }
