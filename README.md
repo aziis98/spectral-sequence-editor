@@ -4,7 +4,20 @@
 
 # Spectral Sequence Editor
 
-I don't knot much about spectral sequences, but maybe this tool will help someone who does.
+I don't knot much about [spectral sequences](https://en.wikipedia.org/wiki/Spectral_sequence), but maybe this tool will help someone who does.
+
+## Features
+
+- [x] Pannable grid of cells
+- [x] Edit cells by double-clicking on it
+- [x] Arrows
+- [x] Highlight current hovered diagonal
+- [ ] Lazy/Dynamic grid to improve performance and have a costant number of nodes on screen
+- [ ] Export to TikZ
+- [ ] More settings for arrows and "templating"
+- [ ] [Onion skinning](https://en.wikipedia.org/wiki/Onion_skinning) to view more pages at once (?)
+
+For more features open an issue and let's talk about it
 
 ## Usage
 
