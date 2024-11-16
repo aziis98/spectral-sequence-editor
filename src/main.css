@@ -1,0 +1,392 @@
+@import url('@fontsource-variable/material-symbols-outlined/full.css');
+@import url('@fontsource-variable/outfit');
+@import url('@fontsource-variable/jetbrains-mono');
+
+:root {
+}
+
+*,
+*::before,
+*::after {
+    font-family: inherit;
+    margin: 0;
+    box-sizing: border-box;
+}
+
+html,
+body {
+    min-height: 100%;
+}
+
+img {
+    display: block;
+}
+
+body {
+    display: contents;
+    font-family: 'JetBrains Mono Variable', monospace;
+    font-size: 16px;
+
+    color: #333;
+}
+
+/* Typography */
+
+h1,
+h2,
+h3,
+h4 {
+    font-family: 'JetBrains Mono Variable', monospace;
+    font-weight: 600;
+}
+
+:root {
+    --font-size-base: 16px;
+    --line-height: 1.25;
+    --font-size-factor: 1.3;
+}
+
+h1 {
+    font-size: calc(var(--font-size-base) * pow(var(--font-size-factor), 3));
+    line-height: var(--line-height);
+}
+
+h2 {
+    font-size: calc(var(--font-size-base) * pow(var(--font-size-factor), 2));
+    line-height: var(--line-height);
+}
+
+h3 {
+    font-size: calc(var(--font-size-base) * var(--font-size-factor));
+    line-height: var(--line-height);
+}
+
+h4 {
+    font-size: var(--font-size-base);
+    line-height: var(--line-height);
+}
+
+/* Components */
+
+.icon {
+    font-family: 'Material Symbols Outlined Variable';
+    font-size: 24px;
+
+    display: grid;
+    place-content: center;
+}
+
+button {
+    padding: 0 0.75rem;
+    border: 3px solid #333;
+    border-radius: 0.325rem;
+
+    background: #ddd;
+    color: #333;
+    cursor: pointer;
+
+    box-shadow: 3px 3px 0 #666;
+
+    display: grid;
+    place-content: center;
+    place-items: center;
+    grid-auto-flow: column;
+    gap: 0.5rem;
+
+    height: 2rem;
+
+    &:where(:has(.icon:first-child)) {
+        padding-left: 0.25rem;
+    }
+
+    &.square {
+        padding: 0;
+        border-radius: 0.325rem;
+
+        width: 2rem;
+        height: 2rem;
+    }
+
+    &:hover {
+        background: #ccc;
+    }
+
+    &:active {
+        background: #bbb;
+
+        transform: translate(2px, 2px);
+        box-shadow: 1px 1px 0 #666;
+    }
+
+    .icon {
+        font-size: 20px;
+    }
+}
+
+input[type='text'],
+input[type='number'] {
+    padding: 0 0.35rem;
+    border: 3px solid #333;
+    border-radius: 0.325rem;
+
+    width: 100%;
+    height: 2rem;
+
+    background: #fff;
+    color: #333;
+
+    box-shadow: 3px 3px 0 #666;
+
+    &:focus {
+        outline: none;
+    }
+}
+
+input[type='number'] {
+    text-align: center;
+}
+
+input[type='checkbox'] {
+    background: #fff;
+    border: 3px solid #333;
+    border-radius: 0.325rem;
+    box-shadow: 3px 3px 0 #666;
+
+    width: 2rem;
+    height: 2rem;
+
+    appearance: none;
+
+    position: relative;
+
+    &:checked {
+        &::before {
+            content: 'done';
+            font-family: 'Material Symbols Outlined Variable';
+            font-size: 22px;
+            font-weight: 600;
+
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+    }
+
+    &:hover {
+        background: #eee;
+    }
+
+    &:active {
+        background: #ddd;
+
+        transform: translate(2px, 2px);
+        box-shadow: 1px 1px 0 #666;
+    }
+}
+
+a,
+a:visited {
+    color: #555;
+    text-decoration: none;
+
+    &:hover {
+        text-decoration: underline 2px solid;
+    }
+}
+
+.katex-display {
+    margin: 0 !important;
+}
+
+.katex-content {
+    color: #333;
+    user-select: none;
+}
+
+kbd {
+    font-family: 'JetBrains Mono Variable', monospace;
+
+    padding: 0 0.125rem;
+
+    border: 1px solid #333;
+    border-radius: 0.325em;
+
+    background: #e8e8e8;
+    box-shadow: 1px 1px 0 #666;
+}
+
+/* Layout */
+
+main {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: 1fr;
+
+    width: 100vw;
+    height: 100vh;
+
+    user-select: none;
+
+    &:has(> .options:not(.open)) {
+        grid-template-columns: 0 1fr;
+
+        > .options {
+            transform: translateX(-100%);
+        }
+    }
+
+    > .options {
+        position: relative;
+
+        min-width: 350px;
+        max-width: 26vw;
+
+        display: grid;
+        grid-auto-flow: row;
+        align-content: start;
+        gap: 1rem;
+
+        z-index: 10;
+
+        background: #f0f0f0;
+        border-right: 3px solid #333;
+        box-shadow: 3px 0 0 #666;
+
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+
+        > * {
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+
+        p {
+            font-size: 14px;
+        }
+
+        hr {
+            border: none;
+            border-top: 3px solid #ccc;
+        }
+
+        .option {
+            width: 100%;
+
+            display: grid;
+            grid-auto-flow: row;
+            gap: 0.5rem;
+
+            justify-items: start;
+
+            label {
+                font-size: 16px;
+                font-weight: 600;
+            }
+        }
+    }
+
+    > .options-side-buttons {
+        grid-row: 1;
+        grid-column: 2;
+
+        pointer-events: none;
+        z-index: 10;
+
+        padding-top: 1rem;
+
+        button {
+            pointer-events: auto;
+
+            background: #d0d0d0;
+            border: 3px solid #333;
+            border-left: none;
+
+            padding: 1rem;
+            aspect-ratio: 1;
+
+            border-radius: 0;
+            border-top-right-radius: 0.5rem;
+            border-bottom-right-radius: 0.5rem;
+
+            &:hover {
+                background: #c0c0c0;
+            }
+        }
+    }
+
+    > .canvas {
+        --cell-size: 4rem;
+        --gap: 2rem;
+
+        grid-row: 1;
+        grid-column: 2;
+
+        display: grid;
+
+        > canvas {
+            grid-area: 1 / 1;
+
+            width: 100%;
+            height: 100%;
+
+            pointer-events: none;
+        }
+
+        > .cells {
+            grid-area: 1 / 1;
+
+            width: 100%;
+            height: 100%;
+
+            position: relative;
+
+            > .cell {
+                position: absolute;
+
+                min-width: var(--cell-size);
+                min-height: var(--cell-size);
+
+                left: calc(var(--pan-x) * 1px + 50% + (var(--cell-size) + var(--gap)) * var(--x));
+                top: calc(var(--pan-y) * 1px + 50% - (var(--cell-size) + var(--gap)) * var(--y));
+
+                transform: translate(-50%, -50%);
+
+                display: grid;
+                place-content: center;
+                place-items: center;
+                font-size: 24px;
+
+                &:not(.editing) {
+                    &:hover {
+                        background: #00000018;
+                        border-radius: 0.5rem;
+                    }
+                }
+
+                input[type='text'] {
+                    width: 12rem;
+                    height: 2.5rem;
+                    text-align: center;
+                }
+            }
+        }
+    }
+}
+
+/* Misc */
+
+.row {
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+
+    align-items: center;
+
+    .fill {
+        flex: 1;
+    }
+
+    gap: 0.75rem;
+}
