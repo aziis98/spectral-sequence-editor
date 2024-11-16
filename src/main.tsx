@@ -20,6 +20,8 @@ type CanvasContext = {
 }
 
 const updateCanvasContext = (el: HTMLCanvasElement): CanvasContext => {
+    console.log('updateCanvasContext')
+
     el.width = el.offsetWidth * window.devicePixelRatio
     el.height = el.offsetHeight * window.devicePixelRatio
 
@@ -88,7 +90,6 @@ const Canvas = ({ store, setStore }: { store: Store; setStore: Dispatch<StateUpd
 
     const handlePointerDown = (e: PointerEvent) => {
         if (e.button !== 0) return
-        if (e.target !== pannableRef.current) return
         if (!e.shiftKey) return
 
         const mouse = untrasform(viewportMouse)
@@ -160,14 +161,14 @@ const Canvas = ({ store, setStore }: { store: Store; setStore: Dispatch<StateUpd
     // HACK: force re-render
     // console.log($gridRefresh.value)
 
+    const canvasRefCallback = useCallback((el: HTMLCanvasElement | null) => {
+        if (!el) return
+        return (canvasRef.current = updateCanvasContext(el))
+    }, [])
+
     return (
         <div class="canvas" style={{ '--pan-x': pan.x, '--pan-y': pan.y }}>
-            <MemoCanvas
-                canvasRef={el => {
-                    if (!el) return
-                    return (canvasRef.current = updateCanvasContext(el))
-                }}
-            />
+            <MemoCanvas canvasRef={canvasRefCallback} />
             <div
                 class="cells"
                 ref={el => {
@@ -243,14 +244,14 @@ const App = () => {
             store.grid.set(1, 0, 'E_1^{1,0}')
             store.grid.set(0, 1, 'E_1^{0,1}')
             store.grid.set(2, 2, 'E_1^{2,2}')
-            store.grid.set(-3, 2, 'E_1^{-3,2}')
+            // store.grid.set(-3, 2, 'E_1^{-3,2}')
 
             return { ...store }
         })
     }, [])
 
     const handleExportTikz = () => {
-        $exportedCode.value = generateTikz(store.grid, {
+        $exportedCode.value = generateTikz(store.grid, store.extraArrows, {
             ...store.options,
         })
     }
@@ -371,7 +372,7 @@ const App = () => {
                                 <div class="icon">delete</div>
                                 Clear Grid
                             </button>
-                            <button id="sequence-export-btn" onClick={handleExportTikz}>
+                            <button class="primary" id="sequence-export-btn" onClick={handleExportTikz}>
                                 <div class="icon">exit_to_app</div>
                                 Export <em>tikzcd</em>
                             </button>
@@ -406,6 +407,7 @@ const App = () => {
                                     Close
                                 </button>
                                 <button
+                                    class="primary"
                                     onClick={() => {
                                         navigator.clipboard.writeText($exportedCode.value!)
                                     }}
