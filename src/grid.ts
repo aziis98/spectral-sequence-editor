@@ -47,13 +47,13 @@ const interleave3 = (x: number, y: number): number => {
     return interleave2(newX, newY)
 }
 
-const deinterleave3 = (z: number) => {
+const deinterleave3 = (z: number): [number, number] => {
     const signX = (z & 0b1) === 0b1 ? -1 : 1
     const signY = ((z >> 1) & 0b1) === 0b1 ? -1 : 1
 
     const [x, y] = deinterleave2(z >> 2)
 
-    return [signX * x, signY * y] as const
+    return [signX * x, signY * y]
 }
 
 // const x = ((2 * Math.random() - 1) * 0x0fff) | 0
@@ -65,16 +65,56 @@ const deinterleave3 = (z: number) => {
 // console.log('interleave3 =    ', interleave3(x, y).toString(2).padStart(32, '0').split('').join(' '))
 // console.log('y           =', Math.abs(y).toString(2).padStart(16, '0').split('').join('   '), '      = ' + y)
 
-export type Grid<T> = {
-    has(x: number, y: number): boolean
-    get(x: number, y: number): T
-    set(x: number, y: number, value: T): void
+// export type Grid<T> = {
+//     has(x: number, y: number): boolean
+//     get(x: number, y: number): T
+
+//     set(x: number, y: number, value: T): void
+//     delete(x: number, y: number): void
+
+//     clear(): void
+// }
+
+export type GridIteratorItem<T> = [[number, number], T]
+
+export abstract class Grid<T> {
+    abstract has(x: number, y: number): boolean
+    abstract get(x: number, y: number): T
+
+    abstract set(x: number, y: number, value: T): void
+    abstract delete(x: number, y: number): void
+    abstract clear(): void
+
+    abstract [Symbol.iterator](): Iterator<GridIteratorItem<T>>
+
+    map<U>(fn: (value: T, x: number, y: number) => U): Grid<U> {
+        const newGrid = new InfiniteGrid<U>()
+
+        for (const [[x, y], value] of this) {
+            newGrid.set(x, y, fn(value, x, y))
+        }
+
+        return newGrid
+    }
+
+    filter(fn: (value: T, x: number, y: number) => boolean): Grid<T> {
+        const newGrid = new InfiniteGrid<T>()
+
+        for (const [[x, y], value] of this) {
+            if (fn(value, x, y)) {
+                newGrid.set(x, y, value)
+            }
+        }
+
+        return newGrid
+    }
 }
 
-export class InfiniteGrid<T> {
+export class InfiniteGrid<T> extends Grid<T> {
     private dict: T[]
 
     constructor() {
+        super()
         this.dict = []
     }
 
@@ -90,6 +130,14 @@ export class InfiniteGrid<T> {
         this.dict[interleave3(x, y)] = value
     }
 
+    delete(x: number, y: number) {
+        delete this.dict[interleave3(x, y)]
+    }
+
+    clear() {
+        this.dict = []
+    }
+
     inspect() {
         console.log(this.dict)
     }
@@ -98,7 +146,7 @@ export class InfiniteGrid<T> {
         for (let i = 0; i < this.dict.length; i++) {
             if (this.dict[i] !== undefined) {
                 const coord = deinterleave3(i)
-                yield [coord, this.dict[i]] as const
+                yield [coord, this.dict[i]] as GridIteratorItem<T>
             }
         }
     }

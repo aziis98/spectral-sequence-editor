@@ -1,18 +1,29 @@
 import { computed, useSignal } from '@preact/signals'
-import { useEffect, useRef } from 'preact/hooks'
+import { RefObject } from 'preact'
+import { useEffect, useRef, useState } from 'preact/hooks'
+import { Coord2i } from './math'
 
-type MouseState = null | {
+type PannableState = null | {
     panStartPos: { x: number; y: number }
     dragStartPos: { x: number; y: number }
 }
 
-export const useMouse = () => {
-    const $mouse = useSignal({
+export const useMouse = (): [
+    {
+        x: number
+        y: number
+        buttons: number
+        shiftKey: boolean
+    },
+    RefObject<HTMLElement>
+] => {
+    const [mouse, setMouse] = useState({
         x: 0,
         y: 0,
         buttons: 0,
         shiftKey: false,
     })
+
     const elementRef = useRef<HTMLElement>(null)
 
     const onMouseMove = (e: MouseEvent) => {
@@ -20,12 +31,12 @@ export const useMouse = () => {
 
         const rect = elementRef.current.getBoundingClientRect()
 
-        $mouse.value = {
+        setMouse({
             x: e.clientX - rect.left,
             y: e.clientY - rect.top,
             buttons: e.buttons,
             shiftKey: e.shiftKey,
-        }
+        })
     }
 
     useEffect(() => {
@@ -38,59 +49,55 @@ export const useMouse = () => {
         }
     }, [elementRef.current])
 
-    return [$mouse, elementRef] as const
+    return [mouse, elementRef] as const
 }
 
-export const usePannable = <T extends HTMLElement>() => {
+export function useEventListener<K extends keyof HTMLElementEventMap>(
+    el: HTMLElement | Document | Window,
+    type: K,
+    listener: (this: HTMLElement, ev: HTMLElementEventMap[K]) => any
+) {
+    useEffect(() => {
+        // @ts-ignore
+        el.addEventListener(type, listener)
+
+        return () => {
+            // @ts-ignore
+            el.removeEventListener(type, listener)
+        }
+    }, [el, type, listener])
+}
+
+export const usePannable = <T extends HTMLElement>(): [Coord2i, RefObject<T>, boolean] => {
     const pannableRef = useRef<T>(null)
 
     const $pan = useSignal({ x: 0, y: 0 })
-    const $mouse = useSignal<MouseState>(null)
+    const $state = useSignal<PannableState>(null)
 
-    const onPointerDown = (e: PointerEvent) => {
-        console.log(e.target, pannableRef.current)
-
+    useEventListener(document, 'pointerdown', (e: PointerEvent) => {
         if (e.target !== pannableRef.current) return
         if (e.shiftKey) return
 
-        $mouse.value = {
-            panStartPos: { x: $pan.value.x, y: $pan.value.y },
+        $state.value = {
+            panStartPos: $pan.value,
             dragStartPos: { x: e.clientX, y: e.clientY },
         }
-    }
+    })
 
-    const onPointerMove = (e: PointerEvent) => {
-        if (!$mouse.value) return
+    useEventListener(document, 'pointermove', (e: PointerEvent) => {
+        if (!$state.value) return
 
         $pan.value = {
-            x: $mouse.value.panStartPos.x + (e.clientX - $mouse.value.dragStartPos.x),
-            y: $mouse.value.panStartPos.y + (e.clientY - $mouse.value.dragStartPos.y),
+            x: $state.value.panStartPos.x + (e.clientX - $state.value.dragStartPos.x),
+            y: $state.value.panStartPos.y + (e.clientY - $state.value.dragStartPos.y),
         }
-    }
+    })
 
-    const onPointerUp = () => {
-        $mouse.value = null
-    }
+    useEventListener(document, 'pointerup', () => {
+        $state.value = null
+    })
 
-    useEffect(() => {
-        console.log(pannableRef.current)
+    const panning = $state.value !== null
 
-        if (!pannableRef.current) return
-
-        console.log('adding event listeners')
-
-        document.addEventListener('pointerdown', onPointerDown)
-        document.addEventListener('pointermove', onPointerMove)
-        document.addEventListener('pointerup', onPointerUp)
-
-        return () => {
-            console.log('removing event listeners')
-
-            document.removeEventListener('pointerdown', onPointerDown)
-            document.removeEventListener('pointermove', onPointerMove)
-            document.removeEventListener('pointerup', onPointerUp)
-        }
-    }, [pannableRef.current])
-
-    return [computed(() => $pan.value), pannableRef] as const
+    return [$pan.value, pannableRef, panning]
 }

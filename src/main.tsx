@@ -1,88 +1,65 @@
-import { signal, Signal, useSignal } from '@preact/signals'
+import { signal, useSignal } from '@preact/signals'
 import clsx from 'clsx'
 import { Ref, render } from 'preact'
 import { Katex } from './components/Katex'
-import { useMouse, usePannable } from './hooks'
+import { useEventListener, useMouse, usePannable } from './hooks'
 import { convertRemToPixels } from './utils'
-import { useCallback, useEffect, useRef } from 'preact/hooks'
+import { Dispatch, StateUpdater, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 import { InfiniteGrid } from './grid'
-import { drawLatexArrow, Point, renderArrows } from './graphics'
+import { drawCanvas, drawLatexArrow, renderArrows } from './graphics'
+import { generateTikz } from './tikz'
+import { EditorOptions, Store } from './store'
+import { Coord2i } from './math'
+import { Cell } from './components/Cell'
 
 const GRID_SIZE = convertRemToPixels(6 /* rem */)
 
-type GridCell = Signal<{
-    editing: boolean
-    value: string
-}>
+type CanvasContext = {
+    el: HTMLCanvasElement
+    ctx: CanvasRenderingContext2D
+}
+
+const updateCanvasContext = (el: HTMLCanvasElement): CanvasContext => {
+    el.width = el.offsetWidth * window.devicePixelRatio
+    el.height = el.offsetHeight * window.devicePixelRatio
+
+    const ctx = el.getContext('2d')
+    if (!ctx) throw new Error('Failed to get 2d context')
+
+    return { el, ctx }
+}
 
 const MemoCanvas = ({ canvasRef }: { canvasRef: Ref<HTMLCanvasElement> }) => <canvas ref={canvasRef} />
 
-const Cell = ({ x, y, $cell }: { x: number; y: number; $cell: GridCell }) => {
-    const cell = $cell.value
+const Canvas = ({ store, setStore }: { store: Store; setStore: Dispatch<StateUpdater<Store>> }) => {
+    const [viewportMouse, mouseRef] = useMouse()
+    const [pan, pannableRef, panning] = usePannable<HTMLDivElement>()
 
-    return (
-        <div
-            class={clsx('cell', cell.editing && 'editing')}
-            style={{ '--x': x, '--y': y }}
-            onDblClick={() =>
-                ($cell.value = {
-                    ...cell,
-                    editing: true,
-                })
-            }
-        >
-            {cell.editing ? (
-                <input
-                    type="text"
-                    value={cell.value}
-                    ref={el => el?.focus()}
-                    onKeyDown={e => {
-                        console.log(e.key)
-                        if (e.key === 'Enter') {
-                            $cell.value = {
-                                editing: false,
-                                value: e.currentTarget.value,
-                            }
-                        }
-                        if (e.key === 'Escape') {
-                            $cell.value = {
-                                editing: false,
-                                value: cell.value,
-                            }
-                        }
-                    }}
-                    onBlur={e => {
-                        $cell.value = {
-                            editing: false,
-                            value: e.currentTarget.value,
-                        }
-                    }}
-                />
-            ) : (
-                <Katex value={cell.value} />
-            )}
-        </div>
-    )
-}
+    const canvasRef = useRef<CanvasContext | null>(null)
 
-const Canvas = ({
-    $grid,
-    $gridRefresh,
-    $optionPageIndex,
-    $extraArrows,
-}: {
-    $grid: Signal<InfiniteGrid<GridCell>>
-    $gridRefresh: Signal<number>
-    $optionPageIndex: Signal<number>
-    $extraArrows: Signal<[Point, Point][]>
-}) => {
-    const [$mouse, mouseRef] = useMouse()
-    const [$pan, pannableRef] = usePannable<HTMLDivElement>()
-    const ctxRef = useRef<CanvasRenderingContext2D | null>(null)
+    const remountCanvasContext = () => {
+        if (!canvasRef.current) return
 
-    const untrasform = ([x, y]: Point) => {
-        const g = ctxRef.current!
-        return [x - g.canvas.width / 2 - $pan.value.x, g.canvas.height / 2 - y + $pan.value.y]
+        canvasRef.current = updateCanvasContext(canvasRef.current.el)
+        setStore(store => ({ ...store }))
+    }
+
+    // useEffect(() => {
+    //     remountCanvasContext()
+    // }, [canvasRef.current, store.options.showOptions])
+
+    useEventListener(window, 'resize', () => {
+        remountCanvasContext()
+    })
+
+    const untrasform = ({ x, y }: Coord2i): Coord2i => {
+        if (!canvasRef.current) throw new Error('Canvas not mounted')
+
+        const g = canvasRef.current.ctx
+        return {
+            x: x - g.canvas.width / window.devicePixelRatio / 2 - pan.x,
+            y: g.canvas.height / window.devicePixelRatio / 2 - y + pan.y,
+        }
     }
 
     const handleCreateCell = (e: MouseEvent) => {
@@ -90,155 +67,107 @@ const Canvas = ({
 
         if (!(e.target as HTMLElement).matches('.cells')) return
 
-        const [mouseX, mouseY] = untrasform([$mouse.value.x, $mouse.value.y])
-        const [cellX, cellY] = [Math.floor(mouseX / GRID_SIZE + 0.5), Math.floor(mouseY / GRID_SIZE + 0.5)]
+        const mouse = untrasform(viewportMouse)
+        const cell = {
+            x: Math.floor(mouse.x / GRID_SIZE + 0.5),
+            y: Math.floor(mouse.y / GRID_SIZE + 0.5),
+        }
 
-        $grid.value.set(
-            cellX,
-            cellY,
-            signal({
-                editing: true,
-                value: `E_{${$optionPageIndex.value}}^{${cellX},${cellY}}`,
-            })
-        )
-        $gridRefresh.value += 1
+        setStore((store: Store) => {
+            store.grid.set(cell.x, cell.y, `E_{${store.options.r}}^{${cell.x},${cell.y}}`)
+            return {
+                ...store,
+
+                grid: store.grid,
+                editing: cell,
+            }
+        })
     }
 
-    const $arrowStartCell = useSignal<[number, number] | null>(null)
+    const $connectArrowStartCell = useSignal<Coord2i | null>(null)
 
     const handlePointerDown = (e: PointerEvent) => {
         if (e.button !== 0) return
         if (e.target !== pannableRef.current) return
         if (!e.shiftKey) return
 
-        $arrowStartCell.value = untrasform([$mouse.value.x, $mouse.value.y]).map(v =>
-            Math.floor(v / GRID_SIZE + 0.5)
-        ) as [number, number]
+        const mouse = untrasform(viewportMouse)
+
+        $connectArrowStartCell.value = {
+            x: Math.floor(mouse.x / GRID_SIZE + 0.5),
+            y: Math.floor(mouse.y / GRID_SIZE + 0.5),
+        }
     }
 
     const handlePointerUp = (e: PointerEvent) => {
         if (e.button !== 0) return
         if (!e.shiftKey) return
-        if (!$arrowStartCell.value) return
+        if (!$connectArrowStartCell.value) return
 
-        const [cellX, cellY] = untrasform([$mouse.value.x, $mouse.value.y]).map(v =>
-            Math.floor(v / GRID_SIZE + 0.5)
-        ) as [number, number]
+        const connectArrowStartCell = $connectArrowStartCell.value
 
-        console.log('connect', $arrowStartCell.value, [cellX, cellY])
-        $extraArrows.value = [...$extraArrows.value, [$arrowStartCell.value, [cellX, cellY]]]
-        $arrowStartCell.value = null
+        const mouse = untrasform(viewportMouse)
+        const cell = {
+            x: Math.floor(mouse.x / GRID_SIZE + 0.5),
+            y: Math.floor(mouse.y / GRID_SIZE + 0.5),
+        }
+
+        console.log('connect', connectArrowStartCell, cell)
+
+        setStore(store => {
+            return {
+                ...store,
+                extraArrows: [...store.extraArrows, [connectArrowStartCell, cell]],
+            }
+        })
+
+        $connectArrowStartCell.value = null
     }
 
-    const canvasRefCallback = useCallback(
-        (el: HTMLCanvasElement | null) => {
-            if (!el) return
+    useLayoutEffect(() => {
+        if (!canvasRef.current) return
+        console.log('render')
 
-            console.log('canvas mounted')
-
-            el.width = el.offsetWidth
-            el.height = el.offsetHeight
-
-            ctxRef.current = el.getContext('2d')
-        },
-        [$gridRefresh.value]
-    )
-
-    useEffect(() => {
-        if (!ctxRef.current) return
         // console.time('render')
 
-        const g = ctxRef.current
+        const g = canvasRef.current.ctx
 
-        g.resetTransform()
-        g.clearRect(0, 0, g.canvas.width, g.canvas.height)
+        drawCanvas(g, {
+            grid: store.grid,
+            extraArrows: store.extraArrows,
 
-        g.translate(g.canvas.width / 2, g.canvas.height / 2)
-        g.translate($pan.value.x, $pan.value.y)
-        g.scale(1, -1)
+            pan,
+            panning,
 
-        // Dot grid
-        g.fillStyle = '#ccc'
-        g.lineWidth = 1
+            mouse: viewportMouse,
+            connectArrowStartCell: $connectArrowStartCell.value,
 
-        const viewportCenterX = -($pan.value.x / GRID_SIZE) | 0
-        const viewportCenterY = ($pan.value.y / GRID_SIZE) | 0
-
-        const RADIUS = 10
-
-        for (let i = viewportCenterX - RADIUS; i <= viewportCenterX + RADIUS; i++) {
-            for (let j = viewportCenterY - RADIUS; j <= viewportCenterY + RADIUS; j++) {
-                g.beginPath()
-                g.arc(i * GRID_SIZE, j * GRID_SIZE, 2, 0, 2 * Math.PI)
-                g.fill()
-            }
-        }
-
-        // Highlight current cell
-        const [mouseX, mouseY] = untrasform([$mouse.value.x, $mouse.value.y])
-        const [cellX, cellY] = [Math.floor(mouseX / GRID_SIZE + 0.5), Math.floor(mouseY / GRID_SIZE + 0.5)]
-
-        if (
-            !$grid.value.has(cellX, cellY) &&
-            Math.sqrt((cellX * GRID_SIZE - mouseX) ** 2 + (cellY * GRID_SIZE - mouseY) ** 2) < GRID_SIZE / 2
-        ) {
-            const RADIUS = GRID_SIZE * 0.25
-
-            const [lastX, lastY] = $arrowStartCell.value ?? [NaN, NaN]
-
-            g.fillStyle = lastX === cellX && lastY === cellY ? '#0004' : '#0002'
-            g.beginPath()
-            g.arc(cellX * GRID_SIZE, cellY * GRID_SIZE, RADIUS, 0, 2 * Math.PI)
-            g.fill()
-        }
-
-        // Axes
-        g.strokeStyle = '#666'
-        g.lineWidth = 1.5
-        drawLatexArrow(g, [-0.5 * GRID_SIZE, -0.5 * GRID_SIZE], [3.5 * GRID_SIZE, -0.5 * GRID_SIZE])
-        drawLatexArrow(g, [-0.5 * GRID_SIZE, -0.5 * GRID_SIZE], [-0.5 * GRID_SIZE, 3.5 * GRID_SIZE])
-
-        // Spectral sequence default arrows
-        renderArrows(g, GRID_SIZE, $grid.value, $optionPageIndex.value, [cellX, cellY])
-
-        // Extra arrows
-        for (const [[startCellX, startCellY], [endCellX, endCellY]] of $extraArrows.value) {
-            const [x1, y1] = [startCellX * GRID_SIZE, startCellY * GRID_SIZE]
-            const [x2, y2] = [endCellX * GRID_SIZE, endCellY * GRID_SIZE]
-
-            g.strokeStyle = '#66d'
-
-            g.lineWidth = 1.5
-            drawLatexArrow(g, [x1, y1], [x2, y2], { contractEnds: 0.35 * GRID_SIZE })
-        }
-
-        // Connect arrow
-        if ($mouse.value.buttons === 1 && $arrowStartCell.value) {
-            const [lastX, lastY] = $arrowStartCell.value
-            const [x1, y1] = [lastX * GRID_SIZE, lastY * GRID_SIZE]
-            const [x2, y2] = [mouseX, mouseY]
-
-            g.strokeStyle = '#000'
-            g.lineWidth = 1.5
-            drawLatexArrow(g, [x1, y1], [x2, y2], { contractEnds: 0.15 * GRID_SIZE })
-        }
+            gridSize: GRID_SIZE,
+            ...store.options,
+        })
 
         // console.timeEnd('render')
-    }, [
-        $pan.value,
-        $optionPageIndex.value,
-        $gridRefresh.value,
-        $mouse.value,
-        $arrowStartCell.value,
-        $extraArrows.value,
-    ])
+    }, [store, store.options.showOptions, pan, panning, viewportMouse, $connectArrowStartCell.value])
+
+    // Remove empty cells
+    // ;[...store.grid].forEach(([[x, y], content]) => {
+    //     if (cell && cell.value.trim().length === 0) {
+    //         $grid.value.delete(x, y)
+    //         $gridRefresh.value += 1
+    //     }
+    // })
 
     // HACK: force re-render
-    console.log($gridRefresh.value)
+    // console.log($gridRefresh.value)
 
     return (
-        <div class="canvas" style={{ '--pan-x': $pan.value.x, '--pan-y': $pan.value.y }}>
-            <MemoCanvas canvasRef={canvasRefCallback} />
+        <div class="canvas" style={{ '--pan-x': pan.x, '--pan-y': pan.y }}>
+            <MemoCanvas
+                canvasRef={el => {
+                    if (!el) return
+                    return (canvasRef.current = updateCanvasContext(el))
+                }}
+            />
             <div
                 class="cells"
                 ref={el => {
@@ -249,8 +178,30 @@ const Canvas = ({
                 onPointerUp={handlePointerUp}
                 onDblClick={handleCreateCell}
             >
-                {Array.from($grid.value).map(([[x, y], $cell]) => (
-                    <Cell x={x} y={y} $cell={$cell} />
+                {Array.from(store.grid).map(([[x, y], content]) => (
+                    <Cell
+                        coord={{ x, y }}
+                        editing={store.editing?.x === x && store.editing?.y === y}
+                        content={content}
+                        setContent={content => {
+                            if (content.trim().length === 0) {
+                                setStore(store => {
+                                    store.grid.delete(x, y)
+                                    return { ...store, grid: store.grid }
+                                })
+                            } else {
+                                setStore(store => {
+                                    store.grid.set(x, y, content)
+                                    return { ...store, grid: store.grid }
+                                })
+                            }
+                        }}
+                        setEditing={newEditing => {
+                            setStore(store => {
+                                return { ...store, editing: newEditing ? { x, y } : null }
+                            })
+                        }}
+                    />
                 ))}
             </div>
         </div>
@@ -258,144 +209,216 @@ const Canvas = ({
 }
 
 const App = () => {
-    const $optionsOpen = useSignal(true)
+    const [store, setStore] = useState<Store>({
+        grid: new InfiniteGrid<string>(),
+        extraArrows: [],
+        editing: null,
+        options: {
+            r: 0,
+            showOptions: true,
+            showDotGrid: true,
+            showAxes: true,
+            showDifferentials: true,
+            showExtraArrows: true,
+        },
+    })
 
-    const $gridRefresh = useSignal(0)
-    const $grid = useSignal(new InfiniteGrid<GridCell>())
+    const setOptions: Dispatch<StateUpdater<EditorOptions>> = options => {
+        setStore(store => {
+            return {
+                ...store,
+                options: typeof options === 'function' ? options(store.options) : options,
+            }
+        })
+    }
+
+    const $exportedCode = useSignal<string | null>(null)
 
     // @ts-ignore
-    window.$grid = $grid
-
-    const $extraArrows = useSignal<[Point, Point][]>([])
+    window.$grid = store.grid
 
     useEffect(() => {
-        $gridRefresh.value += 1
-    }, [$optionsOpen.value])
+        setStore(store => {
+            store.grid.set(0, 0, 'E_1^{0,0}')
+            store.grid.set(1, 0, 'E_1^{1,0}')
+            store.grid.set(0, 1, 'E_1^{0,1}')
+            store.grid.set(2, 2, 'E_1^{2,2}')
+            store.grid.set(-3, 2, 'E_1^{-3,2}')
 
-    useEffect(() => {
-        $grid.value.set(0, 0, signal({ editing: false, value: 'E_1^{0,0}' }))
-        $grid.value.set(1, 0, signal({ editing: false, value: 'E_1^{1,0}' }))
-        $grid.value.set(0, 1, signal({ editing: false, value: 'E_1^{0,1}' }))
-        $grid.value.set(2, 2, signal({ editing: false, value: 'E_1^{2,2}' }))
-        $grid.value.set(-3, 2, signal({ editing: false, value: 'E_1^{-3,2}' }))
-
-        $gridRefresh.value += 1
-
-        window.addEventListener('resize', () => {
-            $gridRefresh.value += 1
+            return { ...store }
         })
     }, [])
 
-    const $optionPageIndex = useSignal(0)
-    const $optionShowAxes = useSignal(true)
-    const $optionShowPageArrows = useSignal(true)
+    const handleExportTikz = () => {
+        $exportedCode.value = generateTikz(store.grid, {
+            ...store.options,
+        })
+    }
 
     return (
-        <main>
-            <div class={clsx('options', 'stack-v', $optionsOpen.value && 'open')}>
-                <section>
-                    <h1>Spectral Sequence Editor</h1>
-                    <h2>
-                        by <a href="https://aziis98.com">@aziis98</a>
-                    </h2>
-                </section>
-                <hr />
-                <p>
-                    To create a new cell, double click on an empty dot. To edit a cell, double click on it. To connect
-                    two cells with an arrow, drag from one cell to another while holding <kbd>Shift</kbd>.
-                </p>
-                <hr />
-                <h3>Options</h3>
-                <div class="option">
-                    <h4>Sequence Page</h4>
-                    <div class="row">
-                        <button class="square" onClick={() => ($optionPageIndex.value -= 1)}>
-                            <div class="icon">remove</div>
-                        </button>
-                        <input
-                            id="sequence-page"
-                            type="number"
-                            class="fill"
-                            value={$optionPageIndex.value}
-                            onInput={e => ($optionPageIndex.value = e.currentTarget.valueAsNumber)}
-                        />
-                        <button class="square" onClick={() => ($optionPageIndex.value += 1)}>
-                            <div class="icon">add</div>
-                        </button>
-                    </div>
-                </div>
-                <div class="option">
-                    <h4>Toggles</h4>
-                    <div class="row">
-                        <input
-                            type="checkbox"
-                            id="option-show-axes"
-                            checked={$optionShowAxes.value}
-                            onInput={e => ($optionShowAxes.value = e.currentTarget.checked)}
-                        />
-                        <label for="option-show-axes">Axes</label>
-                    </div>
-                    <div class="row">
-                        <input
-                            type="checkbox"
-                            id="option-show-page-arrows"
-                            checked={$optionShowPageArrows.value}
-                            onInput={e => ($optionShowPageArrows.value = e.currentTarget.checked)}
-                        />
-                        <label for="option-show-page-arrows">Page Arrows</label>
-                    </div>
-                </div>
-                <hr />
-                <div class="option">
-                    <h3>Extra Arrows</h3>
+        <>
+            <main>
+                <div class={clsx('options', 'stack-v', store.options.showOptions && 'open')}>
+                    <section>
+                        <h1>Spectral Sequence Editor</h1>
+                        <h2>
+                            by <a href="https://aziis98.com">@aziis98</a>
+                        </h2>
+                    </section>
+                    <hr />
                     <p>
-                        To add an arrow, drag from a cell to another cell while holding <kbd>Shift</kbd>.
+                        To create a new cell, double click on an empty dot. To edit a cell, double click on it. To
+                        connect two cells with an arrow, drag from one cell to another while holding <kbd>Shift</kbd>.
                     </p>
-                    {$extraArrows.value.map(([[startCellX, startCellY], [endCellX, endCellY]]) => (
+                    <hr />
+                    <h3>Options</h3>
+                    <div class="option">
+                        <h4>Sequence Page</h4>
                         <div class="row">
-                            <div class="fill">
-                                <Katex value={`(${startCellX},${startCellY}) \\to (${endCellX},${endCellY})`} />
-                            </div>
-                            <button class="square">
-                                <div class="icon">delete</div>
+                            <button
+                                class="square"
+                                onClick={() => setOptions(options => ({ ...options, r: store.options.r - 1 }))}
+                            >
+                                <div class="icon">remove</div>
+                            </button>
+                            <input
+                                id="sequence-page"
+                                type="number"
+                                class="fill"
+                                value={store.options.r}
+                                onInput={e => setOptions(options => ({ ...options, r: e.currentTarget.valueAsNumber }))}
+                            />
+                            <button
+                                class="square"
+                                onClick={() => setOptions(options => ({ ...options, r: store.options.r + 1 }))}
+                            >
+                                <div class="icon">add</div>
                             </button>
                         </div>
-                    ))}
-                    <div class="row">
-                        <button id="sequence-clear-extra-arrows-btn" onClick={() => ($extraArrows.value = [])}>
-                            <div class="icon">delete</div>
-                            Clear Arrows
-                        </button>
+                    </div>
+                    <div class="option">
+                        <h4>Toggles</h4>
+                        <div class="row">
+                            <input
+                                type="checkbox"
+                                id="option-show-dot-grid"
+                                checked={store.options.showDotGrid}
+                                onInput={e =>
+                                    setOptions(options => ({ ...options, showDotGrid: e.currentTarget.checked }))
+                                }
+                            />
+                            <label for="option-show-dot-grid">Dot Grid</label>
+                        </div>
+                        <div class="row">
+                            <input
+                                type="checkbox"
+                                id="option-show-axes"
+                                checked={store.options.showAxes}
+                                onInput={e =>
+                                    setOptions(options => ({ ...options, showAxes: e.currentTarget.checked }))
+                                }
+                            />
+                            <label for="option-show-axes">Axes</label>
+                        </div>
+                        <div class="row">
+                            <input
+                                type="checkbox"
+                                id="option-show-page-arrows"
+                                checked={store.options.showDifferentials}
+                                onInput={e =>
+                                    setOptions(options => ({ ...options, showDifferentials: e.currentTarget.checked }))
+                                }
+                            />
+                            <label for="option-show-page-arrows">Differentials</label>
+                        </div>
+                    </div>
+                    <hr />
+                    <div class="option">
+                        <h3>Extra Arrows</h3>
+                        <p>
+                            To add an arrow, drag from a cell to another cell while holding <kbd>Shift</kbd>.
+                        </p>
+                        {store.extraArrows.map(([{ x: startCellX, y: startCellY }, { x: endCellX, y: endCellY }]) => (
+                            <div class="row">
+                                <div class="fill">
+                                    <Katex value={`(${startCellX},${startCellY}) \\to (${endCellX},${endCellY})`} />
+                                </div>
+                                <button class="square">
+                                    <div class="icon">delete</div>
+                                </button>
+                            </div>
+                        ))}
+                        <div class="row">
+                            <button
+                                id="sequence-clear-extra-arrows-btn"
+                                onClick={() => setStore({ ...store, extraArrows: [] })}
+                            >
+                                <div class="icon">delete</div>
+                                Clear Arrows
+                            </button>
+                        </div>
+                    </div>
+                    <hr />
+                    <div class="option">
+                        <h3>Actions</h3>
+                        <div class="row">
+                            <button
+                                id="sequence-clear-btn"
+                                onClick={() => {
+                                    setStore({ ...store, grid: new InfiniteGrid() })
+                                }}
+                            >
+                                <div class="icon">delete</div>
+                                Clear Grid
+                            </button>
+                            <button id="sequence-export-btn" onClick={handleExportTikz}>
+                                <div class="icon">exit_to_app</div>
+                                Export <em>tikzcd</em>
+                            </button>
+                        </div>
+                    </div>
+                    <hr />
+                </div>
+                <div class="options-side-buttons">
+                    <button
+                        class="square"
+                        onClick={() => setOptions(options => ({ ...options, showOptions: !options.showOptions }))}
+                    >
+                        <div class="icon">{store.options.showOptions ? 'chevron_left' : 'chevron_right'}</div>
+                    </button>
+                </div>
+                <Canvas store={store} setStore={setStore} />
+            </main>
+            {$exportedCode.value && (
+                <div class="modal-container">
+                    <div class="modal">
+                        <div class="title">
+                            <h2>Exported Tikz</h2>
+                        </div>
+                        <div class="content">
+                            {/* prettier-ignore */}
+                            <pre><code>{$exportedCode.value}</code></pre>
+                        </div>
+                        <div class="actions">
+                            <div class="row">
+                                <button onClick={() => ($exportedCode.value = null)}>
+                                    <div class="icon">close</div>
+                                    Close
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        navigator.clipboard.writeText($exportedCode.value!)
+                                    }}
+                                >
+                                    <div class="icon">content_copy</div>
+                                    Copy
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <hr />
-                <div class="option">
-                    <h3>Actions</h3>
-                    <div class="row">
-                        <button id="sequence-clear-btn">
-                            <div class="icon">delete</div>
-                            Clear Canvas
-                        </button>
-                        <button id="sequence-export-btn">
-                            <div class="icon">exit_to_app</div>
-                            Export <em>tikzcd</em>
-                        </button>
-                    </div>
-                </div>
-                <hr />
-            </div>
-            <div class="options-side-buttons">
-                <button class="square" onClick={() => ($optionsOpen.value = !$optionsOpen.value)}>
-                    <div class="icon">{$optionsOpen.value ? 'chevron_left' : 'chevron_right'}</div>
-                </button>
-            </div>
-            <Canvas
-                $grid={$grid}
-                $gridRefresh={$gridRefresh}
-                $optionPageIndex={$optionPageIndex}
-                $extraArrows={$extraArrows}
-            />
-        </main>
+            )}
+        </>
     )
 }
 

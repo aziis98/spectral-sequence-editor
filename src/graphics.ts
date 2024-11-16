@@ -1,6 +1,6 @@
-import { Grid } from './grid'
-
-export type Point = [number, number]
+import { Grid } from '@/grid'
+import { Arrow, EditorOptions } from '@/store'
+import { SpectralSequenceIndex as SpectralSequenceCoord, Coord2i } from './math'
 
 type DrawLatexArrowOptions = {
     contractEnds?: number
@@ -8,8 +8,8 @@ type DrawLatexArrowOptions = {
 
 export function drawLatexArrow(
     g: CanvasRenderingContext2D,
-    [x1, y1]: Point,
-    [x2, y2]: Point,
+    { x: x1, y: y1 }: Coord2i,
+    { x: x2, y: y2 }: Coord2i,
     { contractEnds }: DrawLatexArrowOptions = {}
 ) {
     if (contractEnds !== undefined) {
@@ -60,7 +60,7 @@ export function drawLatexArrow(
 /**
  * Returns the index of the chain relative to the element at $E_r^{p, q}$.
  */
-const diagonalIndex = (r: number, p: number, q: number) => r * q - p * (1 - r)
+const diagonalIndex = ({ r, p, q }: SpectralSequenceCoord) => r * q - p * (1 - r)
 
 export function renderArrows<T>(
     g: CanvasRenderingContext2D,
@@ -72,7 +72,7 @@ export function renderArrows<T>(
     /**
      * Used to highlight the currently hovered chain.
      */
-    activeChain: [number, number] | null
+    activeChain: Coord2i | null
 ) {
     for (let p = -10; p <= 10; p++) {
         for (let q = -10; q <= 10; q++) {
@@ -82,10 +82,10 @@ export function renderArrows<T>(
                 const [x2, y2] = [(p + r) * cellSize, (q - r + 1) * cellSize]
 
                 if (activeChain) {
-                    const currentChainIndex = diagonalIndex(r, p, q)
+                    const currentChainIndex = diagonalIndex({ r, p, q })
 
-                    const [pActive, qActive] = activeChain
-                    const activeChainIndex = diagonalIndex(r, pActive, qActive)
+                    const { x: pActive, y: qActive } = activeChain
+                    const activeChainIndex = diagonalIndex({ r, p: pActive, q: qActive })
 
                     g.strokeStyle = currentChainIndex === activeChainIndex ? '#333' : '#999'
                 } else {
@@ -93,8 +93,145 @@ export function renderArrows<T>(
                 }
 
                 g.lineWidth = 1.5
-                drawLatexArrow(g, [x1, y1], [x2, y2], { contractEnds: 0.35 * cellSize })
+                drawLatexArrow(g, { x: x1, y: y1 }, { x: x2, y: y2 }, { contractEnds: 0.35 * cellSize })
             }
         }
+    }
+}
+
+export function drawCanvas(
+    g: CanvasRenderingContext2D,
+    {
+        grid,
+        extraArrows,
+
+        gridSize,
+
+        pan,
+        panning,
+
+        mouse,
+        connectArrowStartCell,
+
+        r,
+
+        showDotGrid,
+        showAxes,
+        showDifferentials,
+        showExtraArrows,
+    }: {
+        grid: Grid<string>
+        extraArrows: Arrow[]
+
+        gridSize: number
+
+        pan: Coord2i
+        panning: boolean
+
+        mouse: Coord2i & { buttons: number }
+        connectArrowStartCell: Coord2i | null
+    } & EditorOptions
+) {
+    const untrasform = ({ x, y }: Coord2i) => {
+        return {
+            x: x - g.canvas.width / window.devicePixelRatio / 2 - pan.x,
+            y: g.canvas.height / window.devicePixelRatio / 2 - y + pan.y,
+        }
+    }
+
+    g.reset()
+    g.resetTransform()
+    g.clearRect(0, 0, g.canvas.width, g.canvas.height)
+
+    g.lineCap = 'round'
+    g.lineJoin = 'round'
+
+    g.scale(window.devicePixelRatio, window.devicePixelRatio)
+
+    g.translate(g.canvas.width / window.devicePixelRatio / 2, g.canvas.height / window.devicePixelRatio / 2)
+    g.translate(pan.x, pan.y)
+    g.scale(1, -1)
+
+    // Dot grid
+    if (showDotGrid) {
+        g.fillStyle = '#ccc'
+        g.lineWidth = 1 * window.devicePixelRatio
+
+        const viewportCenterX = -(pan.x / gridSize) | 0
+        const viewportCenterY = (pan.y / gridSize) | 0
+
+        const RADIUS = 10
+
+        for (let i = viewportCenterX - RADIUS; i <= viewportCenterX + RADIUS; i++) {
+            for (let j = viewportCenterY - RADIUS; j <= viewportCenterY + RADIUS; j++) {
+                g.beginPath()
+                g.arc(i * gridSize, j * gridSize, 2, 0, 2 * Math.PI)
+                g.fill()
+            }
+        }
+    }
+
+    // Highlight current cell
+    const { x: mouseX, y: mouseY } = untrasform(mouse)
+    const { x: mouseCellX, y: mouseCellY } = {
+        x: Math.floor(mouseX / gridSize + 0.5),
+        y: Math.floor(mouseY / gridSize + 0.5),
+    }
+
+    if (
+        !panning &&
+        !grid.has(mouseCellX, mouseCellY) &&
+        Math.sqrt((mouseCellX * gridSize - mouseX) ** 2 + (mouseCellY * gridSize - mouseY) ** 2) < gridSize / 2
+    ) {
+        const RADIUS = gridSize * 0.25
+
+        g.fillStyle = '#0002'
+        g.beginPath()
+        g.arc(mouseCellX * gridSize, mouseCellY * gridSize, RADIUS, 0, 2 * Math.PI)
+        g.fill()
+    }
+
+    // Axes
+    if (showAxes) {
+        g.strokeStyle = '#333'
+        g.lineWidth = 1 * window.devicePixelRatio
+        drawLatexArrow(g, { x: -0.5 * gridSize, y: -0.5 * gridSize }, { x: 3.5 * gridSize, y: -0.5 * gridSize })
+        drawLatexArrow(g, { x: -0.5 * gridSize, y: -0.5 * gridSize }, { x: -0.5 * gridSize, y: 3.5 * gridSize })
+    }
+
+    // Spectral sequence default arrows
+    if (showDifferentials) {
+        renderArrows(g, gridSize, grid, r, { x: mouseCellX, y: mouseCellY })
+    }
+
+    // Extra arrows
+    for (const [{ x: startCellX, y: startCellY }, { x: endCellX, y: endCellY }] of extraArrows) {
+        const [x1, y1] = [startCellX * gridSize, startCellY * gridSize]
+        const [x2, y2] = [endCellX * gridSize, endCellY * gridSize]
+
+        g.strokeStyle = '#66d'
+
+        g.lineWidth = 1 * window.devicePixelRatio
+        drawLatexArrow(g, { x: x1, y: y1 }, { x: x2, y: y2 }, { contractEnds: 0.35 * gridSize })
+    }
+
+    // Connect arrow
+    if (mouse.buttons === 1 && connectArrowStartCell) {
+        const { x: connectStartX, y: connectStartY } = connectArrowStartCell
+
+        g.strokeStyle = '#000'
+        g.lineWidth = 1 * window.devicePixelRatio
+        drawLatexArrow(
+            g,
+            {
+                x: connectStartX * gridSize,
+                y: connectStartY * gridSize,
+            },
+            {
+                x: mouseCellX * gridSize,
+                y: mouseCellY * gridSize,
+            },
+            { contractEnds: 0.15 * gridSize }
+        )
     }
 }
