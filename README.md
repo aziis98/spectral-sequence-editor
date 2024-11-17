@@ -1,4 +1,8 @@
-# spectral-sequence-editor-v2
+# SpecSeEd
+
+A web-based tool for creating, editing, and sharing spectral sequences.
+
+> **SpecSeEd** := **Spec**tral **Se**quence **Ed**itor
 
 ## Development
 

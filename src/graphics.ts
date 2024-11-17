@@ -62,39 +62,60 @@ export function drawLatexArrow(
  */
 const diagonalIndex = ({ r, p, q }: SpectralSequenceCoord) => r * q - p * (1 - r)
 
+const isActiveChain = (activeChain: SpectralSequenceCoord | null, { r, p, q }: SpectralSequenceCoord) =>
+    activeChain && diagonalIndex({ r, p, q }) === diagonalIndex(activeChain)
+
 export function renderArrows<T>(
     g: CanvasRenderingContext2D,
     cellSize: number,
 
     grid: Grid<T>,
     r: number,
+    mode: 'homological' | 'cohomological',
 
     /**
      * Used to highlight the currently hovered chain.
      */
     activeChain: Coord2i | null
 ) {
-    for (let p = -10; p <= 10; p++) {
-        for (let q = -10; q <= 10; q++) {
-            if (grid.has(p, q) || grid.has(p + r, q - r + 1)) {
-                // E_r^{p, q} -> E_r^{p + r, q - r + 1}
-                const [x1, y1] = [p * cellSize, q * cellSize]
-                const [x2, y2] = [(p + r) * cellSize, (q - r + 1) * cellSize]
+    for (const [[p, q]] of grid) {
+        const [prevX, prevY] = [p + r, q - r + 1]
+        const [currX, currY] = [p, q]
+        const [nextX, nextY] = [p - r, q + r - 1]
 
-                if (activeChain) {
-                    const currentChainIndex = diagonalIndex({ r, p, q })
+        const [[x1, y1], [x2, y2], [x3, y3]] =
+            mode === 'homological'
+                ? [
+                      [prevX, prevY],
+                      [currX, currY],
+                      [nextX, nextY],
+                  ]
+                : [
+                      [nextX, nextY],
+                      [currX, currY],
+                      [prevX, prevY],
+                  ]
 
-                    const { x: pActive, y: qActive } = activeChain
-                    const activeChainIndex = diagonalIndex({ r, p: pActive, q: qActive })
+        g.strokeStyle = isActiveChain(activeChain ? { r, p: activeChain.x, q: activeChain.y } : null, { r, p, q })
+            ? '#333'
+            : '#999'
 
-                    g.strokeStyle = currentChainIndex === activeChainIndex ? '#333' : '#999'
-                } else {
-                    g.strokeStyle = '#999'
-                }
+        g.lineWidth = 1.5
 
-                g.lineWidth = 1.5
-                drawLatexArrow(g, { x: x1, y: y1 }, { x: x2, y: y2 }, { contractEnds: 0.35 * cellSize })
-            }
+        drawLatexArrow(
+            g,
+            { x: x1 * cellSize, y: y1 * cellSize },
+            { x: x2 * cellSize, y: y2 * cellSize },
+            { contractEnds: 0.35 * cellSize }
+        )
+
+        if (!grid.has(nextX, nextY)) {
+            drawLatexArrow(
+                g,
+                { x: x2 * cellSize, y: y2 * cellSize },
+                { x: x3 * cellSize, y: y3 * cellSize },
+                { contractEnds: 0.35 * cellSize }
+            )
         }
     }
 }
@@ -114,6 +135,7 @@ export function drawCanvas(
         connectArrowStartCell,
 
         r,
+        mode,
 
         showDotGrid,
         showAxes,
@@ -122,6 +144,9 @@ export function drawCanvas(
     }: {
         grid: Grid<string>
         extraArrows: Arrow[]
+
+        r: number
+        mode: 'homological' | 'cohomological'
 
         gridSize: number
 
@@ -201,18 +226,20 @@ export function drawCanvas(
 
     // Spectral sequence default arrows
     if (showDifferentials) {
-        renderArrows(g, gridSize, grid, r, { x: mouseCellX, y: mouseCellY })
+        renderArrows(g, gridSize, grid, r, mode, { x: mouseCellX, y: mouseCellY })
     }
 
     // Extra arrows
-    for (const [{ x: startCellX, y: startCellY }, { x: endCellX, y: endCellY }] of extraArrows) {
-        const [x1, y1] = [startCellX * gridSize, startCellY * gridSize]
-        const [x2, y2] = [endCellX * gridSize, endCellY * gridSize]
+    if (showExtraArrows) {
+        for (const [{ x: startCellX, y: startCellY }, { x: endCellX, y: endCellY }] of extraArrows) {
+            const [x1, y1] = [startCellX * gridSize, startCellY * gridSize]
+            const [x2, y2] = [endCellX * gridSize, endCellY * gridSize]
 
-        g.strokeStyle = '#66d'
+            g.strokeStyle = '#66d'
 
-        g.lineWidth = 1 * window.devicePixelRatio
-        drawLatexArrow(g, { x: x1, y: y1 }, { x: x2, y: y2 }, { contractEnds: 0.35 * gridSize })
+            g.lineWidth = 1 * window.devicePixelRatio
+            drawLatexArrow(g, { x: x1, y: y1 }, { x: x2, y: y2 }, { contractEnds: 0.35 * gridSize })
+        }
     }
 
     // Connect arrow

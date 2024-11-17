@@ -33,6 +33,10 @@ const updateCanvasContext = (el: HTMLCanvasElement): CanvasContext => {
     return { el, ctx }
 }
 
+/**
+ * MemoCanvas is a memoized version of the <canvas> element, this is to prevent
+ * re-rendering the canvas element.
+ */
 const MemoCanvas = ({ canvasRef }: { canvasRef: Ref<HTMLCanvasElement> }) => <canvas ref={canvasRef} />
 
 const Canvas = ({ store, setStore }: { store: Store; setStore: Dispatch<StateUpdater<Store>> }) => {
@@ -78,7 +82,12 @@ const Canvas = ({ store, setStore }: { store: Store; setStore: Dispatch<StateUpd
         }
 
         setStore((store: Store) => {
-            store.grid.set(cell.x, cell.y, `E_{${store.options.r}}^{${cell.x},${cell.y}}`)
+            if (store.mode === 'homological') {
+                store.grid.set(cell.x, cell.y, `E^{${store.r}}_{${cell.x},${cell.y}}`)
+            } else {
+                store.grid.set(cell.x, cell.y, `E_{${store.r}}^{${cell.x},${cell.y}}`)
+            }
+
             return {
                 ...store,
 
@@ -139,6 +148,9 @@ const Canvas = ({ store, setStore }: { store: Store; setStore: Dispatch<StateUpd
             grid: store.grid,
             extraArrows: store.extraArrows,
 
+            mode: store.mode,
+            r: store.r,
+
             pan,
             panning,
 
@@ -151,17 +163,6 @@ const Canvas = ({ store, setStore }: { store: Store; setStore: Dispatch<StateUpd
 
         // console.timeEnd('render')
     }, [store, store.options.showOptions, pan, panning, viewportMouse, $connectArrowStartCell.value])
-
-    // Remove empty cells
-    // ;[...store.grid].forEach(([[x, y], content]) => {
-    //     if (cell && cell.value.trim().length === 0) {
-    //         $grid.value.delete(x, y)
-    //         $gridRefresh.value += 1
-    //     }
-    // })
-
-    // HACK: force re-render
-    // console.log($gridRefresh.value)
 
     const canvasRefCallback = useCallback((el: HTMLCanvasElement | null) => {
         if (!el) return
@@ -216,8 +217,11 @@ const App = () => {
         grid: new InfiniteGrid<string>(),
         extraArrows: [],
         editing: null,
+
+        r: 0,
+        mode: 'homological',
+
         options: {
-            r: 0,
             showOptions: true,
             showDotGrid: true,
             showAxes: true,
@@ -242,11 +246,11 @@ const App = () => {
 
     useEffect(() => {
         setStore(store => {
-            store.grid.set(0, 0, 'E_1^{0,0}')
-            store.grid.set(1, 0, 'E_1^{1,0}')
-            store.grid.set(0, 1, 'E_1^{0,1}')
-            store.grid.set(2, 2, 'E_1^{2,2}')
-            // store.grid.set(-3, 2, 'E_1^{-3,2}')
+            store.grid.set(0, 0, 'E_0^{0,0}')
+            store.grid.set(1, 0, 'E_0^{1,0}')
+            store.grid.set(0, 1, 'E_0^{0,1}')
+            store.grid.set(2, 2, 'E_0^{2,2}')
+            // store.grid.set(-3, 2, 'E_0^{-3,2}')
 
             return { ...store }
         })
@@ -276,25 +280,36 @@ const App = () => {
                     <hr />
                     <h3>Options</h3>
                     <div class="option">
-                        <h4>Sequence Page</h4>
+                        <h4>Diagram</h4>
                         <div class="row">
-                            <button
-                                class="square"
-                                onClick={() => setOptions(options => ({ ...options, r: store.options.r - 1 }))}
-                            >
+                            <input
+                                type="checkbox"
+                                class="slider"
+                                id="option-mode-homological"
+                                checked={store.mode === 'cohomological'}
+                                onInput={e =>
+                                    setStore(store => ({
+                                        ...store,
+                                        mode: e.currentTarget.checked ? 'cohomological' : 'homological',
+                                    }))
+                                }
+                            />
+                            <label for="option-mode-homological">
+                                {store.mode === 'homological' ? 'Homological' : 'Cohomological'}
+                            </label>
+                        </div>
+                        <div class="row">
+                            <button class="square" onClick={() => setStore(store => ({ ...store, r: store.r - 1 }))}>
                                 <div class="icon">remove</div>
                             </button>
                             <input
                                 id="sequence-page"
                                 type="number"
                                 class="fill"
-                                value={store.options.r}
-                                onInput={e => setOptions(options => ({ ...options, r: e.currentTarget.valueAsNumber }))}
+                                value={store.r}
+                                onInput={e => setStore(store => ({ ...store, r: e.currentTarget.valueAsNumber }))}
                             />
-                            <button
-                                class="square"
-                                onClick={() => setOptions(options => ({ ...options, r: store.options.r + 1 }))}
-                            >
+                            <button class="square" onClick={() => setStore(store => ({ ...store, r: store.r + 1 }))}>
                                 <div class="icon">add</div>
                             </button>
                         </div>
@@ -333,6 +348,17 @@ const App = () => {
                                 }
                             />
                             <label for="option-show-page-arrows">Differentials</label>
+                        </div>
+                        <div class="row">
+                            <input
+                                type="checkbox"
+                                id="option-show-extra-arrows"
+                                checked={store.options.showExtraArrows}
+                                onInput={e =>
+                                    setOptions(options => ({ ...options, showExtraArrows: e.currentTarget.checked }))
+                                }
+                            />
+                            <label for="option-show-extra-arrows">Extra Arrows</label>
                         </div>
                     </div>
                     <hr />

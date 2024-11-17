@@ -33,6 +33,7 @@ type GenTikzOptions = Partial<typeof GEN_TIKZ_OPTIONS>
 
 const GEN_TIKZ_OPTIONS = {
     r: 0,
+    mode: 'homological' as 'homological' | 'cohomological',
 
     showDotGrid: true,
     showAxes: true,
@@ -48,12 +49,12 @@ const GEN_TIKZ_OPTIONS = {
 const line = (s: string = '') => s + '\n'
 
 export function generateTikz(grid: Grid<string>, extraArrows: Arrow[], options: GenTikzOptions = {}): string {
-    options = { ...GEN_TIKZ_OPTIONS, ...options }
+    const opts = { ...GEN_TIKZ_OPTIONS, ...options }
 
     const gridCells = [...grid]
     const pMin = Math.min(0, ...gridCells.map(([[p, _]]) => p))
     const pMax = Math.max(...gridCells.map(([[p, _]]) => p))
-    const qMin = Math.min(0, ...gridCells.map(([[_, q]]) => q))
+    const qMin = Math.min(0, ...gridCells.map(([[_, q]]) => q)) - 1
     const qMax = Math.max(...gridCells.map(([[_, q]]) => q))
 
     const pRange = pMax - pMin + 1
@@ -65,7 +66,9 @@ export function generateTikz(grid: Grid<string>, extraArrows: Arrow[], options: 
         p - pMin + 1,
     ]
 
-    const tikzMatrix = Array.from({ length: qRange + 1 }, () => Array.from({ length: pRange + 1 }, () => ''))
+    const tikzMatrix = Array.from({ length: qRange + 1 }, () =>
+        Array.from({ length: pRange + 1 }, () => String.raw`\vphantom{.}`)
+    )
 
     for (const [[p, q], value] of gridCells) {
         const [i, j] = mapPQtoCell([p, q])
@@ -80,12 +83,14 @@ export function generateTikz(grid: Grid<string>, extraArrows: Arrow[], options: 
     tikzSource += line(String.raw`matrix of math nodes,`)
     tikzSource += line(String.raw`nodes in empty cells,`)
 
-    const minWidthEx = options.minimumWidthEx
-    const minHeightEx = options.minimumHeightEx
+    const minWidthEx = opts.minimumWidthEx
+    const minHeightEx = opts.minimumHeightEx
 
-    tikzSource += line(String.raw`nodes={minimum width=${minWidthEx}ex, minimum height=${minHeightEx}ex},`)
-    tikzSource += line(String.raw`column sep=${options.columnSepEx}ex,`)
-    tikzSource += line(String.raw`row sep=${options.rowSepEx}ex`)
+    tikzSource += line(
+        String.raw`nodes={minimum width=${minWidthEx}ex, minimum height=${minHeightEx}ex, anchor=center},`
+    )
+    tikzSource += line(String.raw`column sep=${opts.columnSepEx}ex,`)
+    tikzSource += line(String.raw`row sep=${opts.rowSepEx}ex`)
     tikzSource += line(String.raw`] {`)
 
     for (const row of tikzMatrix) {
@@ -94,7 +99,80 @@ export function generateTikz(grid: Grid<string>, extraArrows: Arrow[], options: 
 
     tikzSource += line(String.raw`};`)
 
-    // Arrows
+    // Differentials
+    // for (const [[p, q]] of grid) {
+    //     const [prevX, prevY] = [p + r, q - r + 1]
+    //     const [currX, currY] = [p, q]
+    //     const [nextX, nextY] = [p - r, q + r - 1]
+
+    //     const [[x1, y1], [x2, y2], [x3, y3]] =
+    //         mode === 'homological'
+    //             ? [
+    //                   [prevX, prevY],
+    //                   [currX, currY],
+    //                   [nextX, nextY],
+    //               ]
+    //             : [
+    //                   [nextX, nextY],
+    //                   [currX, currY],
+    //                   [prevX, prevY],
+    //               ]
+
+    //     g.strokeStyle = isActiveChain(activeChain ? { r, p: activeChain.x, q: activeChain.y } : null, { r, p, q })
+    //         ? '#333'
+    //         : '#999'
+
+    //     g.lineWidth = 1.5
+
+    //     drawLatexArrow(
+    //         g,
+    //         { x: x1 * cellSize, y: y1 * cellSize },
+    //         { x: x2 * cellSize, y: y2 * cellSize },
+    //         { contractEnds: 0.35 * cellSize }
+    //     )
+
+    //     if (!grid.has(nextX, nextY)) {
+    //         drawLatexArrow(
+    //             g,
+    //             { x: x2 * cellSize, y: y2 * cellSize },
+    //             { x: x3 * cellSize, y: y3 * cellSize },
+    //             { contractEnds: 0.35 * cellSize }
+    //         )
+    //     }
+    // }
+
+    tikzSource += line()
+    tikzSource += line(String.raw`% Differentials`)
+    for (const [[p, q]] of grid) {
+        const [prevX, prevY] = [p + opts.r, q - opts.r + 1]
+        const [currX, currY] = [p, q]
+        const [nextX, nextY] = [p - opts.r, q + opts.r - 1]
+
+        const [[x1, y1], [x2, y2], [x3, y3]] =
+            opts.mode === 'homological'
+                ? [
+                      [prevX, prevY],
+                      [currX, currY],
+                      [nextX, nextY],
+                  ]
+                : [
+                      [nextX, nextY],
+                      [currX, currY],
+                      [prevX, prevY],
+                  ]
+
+        tikzSource += line(
+            String.raw`\draw[->] (m-${mapPQtoCell([x1, y1]).join('-')}) -- (m-${mapPQtoCell([x2, y2]).join('-')});`
+        )
+
+        if (!grid.has(nextX, nextY)) {
+            tikzSource += line(
+                String.raw`\draw[->] (m-${mapPQtoCell([x2, y2]).join('-')}) -- (m-${mapPQtoCell([x3, y3]).join('-')});`
+            )
+        }
+    }
+
+    // Extra Arrows
     tikzSource += line()
     tikzSource += line(String.raw`% Arrows`)
     for (const [{ x: startP, y: startQ }, { x: endP, y: endQ }] of extraArrows) {
