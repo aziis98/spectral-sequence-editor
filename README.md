@@ -2,7 +2,7 @@
 
 A web-based tool for creating, editing, and sharing spectral sequences.
 
-> **SpecSeEd** := **Spec**tral **Se**quence **Ed**itor
+> **SpecSeEd** := **Spec**tral **Se**quence **Ed**itor, pronounced "spec-seed".
 
 ## Development
 
