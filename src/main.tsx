@@ -1,16 +1,18 @@
-import { signal, useSignal } from '@preact/signals'
+import { useSignal } from '@preact/signals'
 import clsx from 'clsx'
 import { Ref, render } from 'preact'
-import { Katex } from './components/Katex'
-import { useEventListener, useMouse, usePannable } from './hooks'
-import { convertRemToPixels } from './utils'
 import { Dispatch, StateUpdater, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
-import { InfiniteGrid } from './grid'
-import { drawCanvas, drawLatexArrow, renderArrows } from './graphics'
-import { generateTikz } from './tikz'
-import { EditorOptions, Store } from './store'
-import { Coord2i } from './math'
-import { Cell } from './components/Cell'
+
+import { useEventListener, useMouse, usePannable } from '@/hooks'
+import { convertRemToPixels } from '@/utils'
+import { InfiniteGrid } from '@/grid'
+import { drawCanvas } from '@/graphics'
+import { generateTikz } from '@/tikz'
+import { EditorOptions, Store } from '@/store'
+import { Coord2i } from '@/math'
+
+import { Katex } from '@/components/Katex'
+import { Cell } from '@/components/Cell'
 
 const GRID_SIZE = convertRemToPixels(6 /* rem */)
 
@@ -46,9 +48,9 @@ const Canvas = ({ store, setStore }: { store: Store; setStore: Dispatch<StateUpd
         setStore(store => ({ ...store }))
     }
 
-    // useEffect(() => {
-    //     remountCanvasContext()
-    // }, [canvasRef.current, store.options.showOptions])
+    useLayoutEffect(() => {
+        remountCanvasContext()
+    }, [store.options.showOptions])
 
     useEventListener(window, 'resize', () => {
         remountCanvasContext()
@@ -236,7 +238,7 @@ const App = () => {
     const $exportedCode = useSignal<string | null>(null)
 
     // @ts-ignore
-    window.$grid = store.grid
+    window.grid = store.grid
 
     useEffect(() => {
         setStore(store => {

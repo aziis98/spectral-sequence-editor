@@ -59,18 +59,19 @@ export function generateTikz(grid: Grid<string>, extraArrows: Arrow[], options: 
     const pRange = pMax - pMin + 1
     const qRange = qMax - qMin + 1
 
-    const originCell: [number, number] = [-pMin, -qMin]
-
-    const mapPQtoCell = ([p, q]: [number, number]): [number, number] => [p - pMin + 1, qRange - q - qMin - 1]
+    const mapPQtoCell = ([p, q]: [number, number]): [number, number] => [
+        //
+        qRange - (q - qMin) + 1,
+        p - pMin + 1,
+    ]
 
     const tikzMatrix = Array.from({ length: qRange + 1 }, () => Array.from({ length: pRange + 1 }, () => ''))
 
     for (const [[p, q], value] of gridCells) {
-        const [x, y] = mapPQtoCell([p, q])
-        tikzMatrix[y][x] = value
+        const [i, j] = mapPQtoCell([p, q])
+        console.log(p, q, value, '->', i, j)
+        tikzMatrix[i - 1][j - 1] = value
     }
-
-    console.log(tikzMatrix)
 
     let tikzSource = ''
 
@@ -104,14 +105,18 @@ export function generateTikz(grid: Grid<string>, extraArrows: Arrow[], options: 
         )
     }
 
-    const [oX, oY] = mapPQtoCell(originCell)
+    const [oX, oY] = mapPQtoCell([0, 0])
+    console.log('origin', '->', [oX, oY])
 
     // Axes
     tikzSource += line()
     tikzSource += line(String.raw`% Axes`)
-    tikzSource += line(String.raw`\draw[thick] (m-${qRange + 1}-1.north east) -- (m-1-1.north east);`)
+
     tikzSource += line(
-        String.raw`\draw[thick] (m-${qRange + 1}-1.north east) -- (m-${qRange + 1}-${pRange + 1}.north east);`
+        String.raw`\draw[thick] ([xshift=-1ex,yshift=-1ex]m-${oX}-${oY}.south west) -- ([xshift=-1ex,yshift=30ex]m-${oX}-${oY}.south west);`
+    )
+    tikzSource += line(
+        String.raw`\draw[thick] ([xshift=-1ex,yshift=-1ex]m-${oX}-${oY}.south west) -- ([xshift=30ex,yshift=-1ex]m-${oX}-${oY}.south west);`
     )
 
     tikzSource += line(String.raw`\end{tikzpicture}`)
