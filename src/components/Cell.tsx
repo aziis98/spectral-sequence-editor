@@ -2,6 +2,37 @@ import clsx from 'clsx'
 
 import { Katex } from '@/components/Katex'
 import { Coord2i } from '@/math'
+import { useState } from 'preact/hooks'
+
+const EditingCell = ({
+    initialContent,
+    done,
+    cancel,
+}: {
+    initialContent: string
+    done: (content: string) => void
+    cancel: () => void
+}) => {
+    const [temporaryContent, setTemporaryContent] = useState(initialContent)
+
+    return (
+        <input
+            type="text"
+            value={temporaryContent}
+            ref={el => el?.focus()}
+            onInput={e => setTemporaryContent(e.currentTarget.value)}
+            onKeyDown={e => {
+                if (e.key === 'Enter') {
+                    done(temporaryContent)
+                }
+                if (e.key === 'Escape') {
+                    cancel()
+                }
+            }}
+            onBlur={e => done(temporaryContent)}
+        />
+    )
+}
 
 export const Cell = ({
     coord: { x, y },
@@ -27,24 +58,13 @@ export const Cell = ({
             onDblClick={() => setEditing(true)}
         >
             {editing ? (
-                <input
-                    type="text"
-                    value={content}
-                    ref={el => el?.focus()}
-                    onKeyDown={e => {
-                        console.log(e.key)
-                        if (e.key === 'Enter') {
-                            setEditing(false)
-                            setContent(e.currentTarget.value)
-                        }
-                        if (e.key === 'Escape') {
-                            setEditing(false)
-                        }
-                    }}
-                    onBlur={e => {
+                <EditingCell
+                    initialContent={content}
+                    done={newContent => {
+                        setContent(newContent)
                         setEditing(false)
-                        setContent(e.currentTarget.value)
                     }}
+                    cancel={() => setEditing(false)}
                 />
             ) : (
                 <Katex value={content} />
