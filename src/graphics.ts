@@ -1,6 +1,6 @@
 import { Grid } from '@/grid'
 import { Arrow, EditorOptions } from '@/store'
-import { SpectralSequenceCoord, Coord2i, elemAlongChain } from './math'
+import { SpectralSequenceCoord, Coord2i, elemAlongChain, Coord2 } from './math'
 
 type DrawLatexArrowOptions = {
     contractEnds?: number
@@ -10,7 +10,7 @@ export function drawLatexArrow(
     g: CanvasRenderingContext2D,
     { x: x1, y: y1 }: Coord2i,
     { x: x2, y: y2 }: Coord2i,
-    { contractEnds }: DrawLatexArrowOptions = {},
+    { contractEnds }: DrawLatexArrowOptions = {}
 ) {
     if (contractEnds !== undefined) {
         // contract the ends of the arrow
@@ -76,7 +76,7 @@ export function renderArrows<T>(
     /**
      * Used to highlight the currently hovered chain.
      */
-    activeChain: Coord2i | null,
+    activeChain: Coord2i | null
 ) {
     for (const [[p, q]] of grid) {
         const [prevX, prevY] = elemAlongChain(-1, { r, p, q })
@@ -104,14 +104,14 @@ export function renderArrows<T>(
             ? '#333'
             : '#999'
 
-        g.lineWidth = 1.5
+        g.lineWidth = 1.5 * window.devicePixelRatio
 
         if (mode === 'homological' || !grid.has(x1, y1)) {
             drawLatexArrow(
                 g,
                 { x: x1 * cellSize, y: y1 * cellSize },
                 { x: x2 * cellSize, y: y2 * cellSize },
-                { contractEnds: 0.35 * cellSize },
+                { contractEnds: 0.35 * cellSize }
             )
         }
 
@@ -120,7 +120,7 @@ export function renderArrows<T>(
                 g,
                 { x: x2 * cellSize, y: y2 * cellSize },
                 { x: x3 * cellSize, y: y3 * cellSize },
-                { contractEnds: 0.35 * cellSize },
+                { contractEnds: 0.35 * cellSize }
             )
         }
     }
@@ -137,7 +137,7 @@ export function drawCanvas(
         pan,
         panning,
 
-        mouse,
+        mouse: viewportMouse,
         connectArrowStartCell,
 
         r,
@@ -161,7 +161,7 @@ export function drawCanvas(
 
         mouse: Coord2i & { buttons: number }
         connectArrowStartCell: Coord2i | null
-    } & EditorOptions,
+    } & EditorOptions
 ) {
     const untrasform = ({ x, y }: Coord2i) => {
         return {
@@ -203,23 +203,27 @@ export function drawCanvas(
     }
 
     // Highlight current cell
-    const { x: mouseX, y: mouseY } = untrasform(mouse)
-    const { x: mouseCellX, y: mouseCellY } = {
+    const mouse = untrasform(viewportMouse)
+    const { x: mouseX, y: mouseY } = mouse
+    const mouseCell = {
         x: Math.floor(mouseX / gridSize + 0.5),
         y: Math.floor(mouseY / gridSize + 0.5),
     }
 
+    const { x: mouseCellX, y: mouseCellY } = mouseCell
+
     if (
         !panning &&
         !grid.has(mouseCellX, mouseCellY) &&
-        Math.sqrt((mouseCellX * gridSize - mouseX) ** 2 + (mouseCellY * gridSize - mouseY) ** 2) <
-            gridSize / 2
+        Coord2.dist(Coord2.mul(mouseCell, gridSize), mouse) < gridSize / 2
     ) {
         const RADIUS = gridSize * 0.25
 
+        const { x, y } = Coord2.mul(mouseCell, gridSize)
+
         g.fillStyle = '#0002'
         g.beginPath()
-        g.arc(mouseCellX * gridSize, mouseCellY * gridSize, RADIUS, 0, 2 * Math.PI)
+        g.arc(x, y, RADIUS, 0, 2 * Math.PI)
         g.fill()
     }
 
@@ -230,50 +234,39 @@ export function drawCanvas(
         drawLatexArrow(
             g,
             { x: -0.5 * gridSize, y: -0.5 * gridSize },
-            { x: 3.5 * gridSize, y: -0.5 * gridSize },
+            { x: 3.5 * gridSize, y: -0.5 * gridSize }
         )
         drawLatexArrow(
             g,
             { x: -0.5 * gridSize, y: -0.5 * gridSize },
-            { x: -0.5 * gridSize, y: 3.5 * gridSize },
+            { x: -0.5 * gridSize, y: 3.5 * gridSize }
         )
     }
 
     // Spectral sequence default arrows
     if (showDifferentials) {
-        renderArrows(g, gridSize, grid, r, mode, { x: mouseCellX, y: mouseCellY })
+        renderArrows(g, gridSize, grid, r, mode, mouseCell)
     }
 
     // Extra arrows
     if (showExtraArrows) {
-        for (const [{ x: startCellX, y: startCellY }, { x: endCellX, y: endCellY }] of extraArrows) {
-            const [x1, y1] = [startCellX * gridSize, startCellY * gridSize]
-            const [x2, y2] = [endCellX * gridSize, endCellY * gridSize]
-
+        for (const [startCell, endCell] of extraArrows) {
             g.strokeStyle = '#66d'
+            g.lineWidth = 1.5 * window.devicePixelRatio
 
-            g.lineWidth = 1 * window.devicePixelRatio
-            drawLatexArrow(g, { x: x1, y: y1 }, { x: x2, y: y2 }, { contractEnds: 0.35 * gridSize })
+            drawLatexArrow(g, Coord2.mul(startCell, gridSize), Coord2.mul(endCell, gridSize), {
+                contractEnds: 0.35 * gridSize,
+            })
         }
     }
 
     // Connect arrow
-    if (mouse.buttons === 1 && connectArrowStartCell) {
-        const { x: connectStartX, y: connectStartY } = connectArrowStartCell
-
+    if (viewportMouse.buttons === 1 && connectArrowStartCell) {
         g.strokeStyle = '#000'
         g.lineWidth = 1 * window.devicePixelRatio
-        drawLatexArrow(
-            g,
-            {
-                x: connectStartX * gridSize,
-                y: connectStartY * gridSize,
-            },
-            {
-                x: mouseCellX * gridSize,
-                y: mouseCellY * gridSize,
-            },
-            { contractEnds: 0.15 * gridSize },
-        )
+
+        drawLatexArrow(g, Coord2.mul(connectArrowStartCell, gridSize), Coord2.mul(mouseCell, gridSize), {
+            contractEnds: 0.15 * gridSize,
+        })
     }
 }

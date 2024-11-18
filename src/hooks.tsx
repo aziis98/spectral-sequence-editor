@@ -55,7 +55,7 @@ export const useMouse = (): [
 export function useEventListener<K extends keyof HTMLElementEventMap>(
     el: HTMLElement | Document | Window,
     type: K,
-    listener: (this: HTMLElement, ev: HTMLElementEventMap[K]) => any,
+    listener: (this: HTMLElement, ev: HTMLElementEventMap[K]) => any
 ) {
     useEffect(() => {
         // @ts-ignore

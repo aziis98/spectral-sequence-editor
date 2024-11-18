@@ -1,6 +1,7 @@
 import { useSignal } from '@preact/signals'
-import clsx from 'clsx'
+
 import { Ref, render } from 'preact'
+
 import {
     Dispatch,
     StateUpdater,
@@ -12,15 +13,16 @@ import {
 } from 'preact/hooks'
 
 import { useEventListener, useMouse, usePannable } from '@/hooks'
-import { convertRemToPixels } from '@/utils'
+import { applyUpdater, convertRemToPixels } from '@/utils'
 import { InfiniteGrid } from '@/grid'
 import { drawCanvas } from '@/graphics'
 import { generateTikz } from '@/tikz'
 import { EditorOptions, Store } from '@/store'
 import { Coord2i } from '@/math'
 
-import { Katex } from '@/components/Katex'
 import { Cell } from '@/components/Cell'
+import { Options } from '@/components/Options'
+import { Icon } from '@/components/Icon'
 
 const GRID_SIZE = convertRemToPixels(6 /* rem */)
 
@@ -279,185 +281,58 @@ const App = () => {
     return (
         <>
             <main>
-                <div class={clsx('options', 'stack-v', store.options.showOptions && 'open')}>
-                    <section>
-                        <h1>Spectral Sequence Editor</h1>
-                        <h2>
-                            by <a href="https://aziis98.com">@aziis98</a>
-                        </h2>
-                    </section>
-                    <hr />
-                    <p>
-                        To create a new cell, double click on an empty dot. To edit a cell, double click on
-                        it. To connect two cells with an arrow, drag from one cell to another while holding{' '}
-                        <kbd>Shift</kbd>.
-                    </p>
-                    <hr />
-                    <h3>Options</h3>
-                    <div class="option">
-                        <h4>Diagram</h4>
-                        <div class="row">
-                            <input
-                                type="checkbox"
-                                class="slider"
-                                id="option-mode-homological"
-                                checked={store.mode === 'cohomological'}
-                                onInput={e =>
-                                    setStore(store => ({
-                                        ...store,
-                                        mode: e.currentTarget.checked ? 'cohomological' : 'homological',
-                                    }))
-                                }
-                            />
-                            <label for="option-mode-homological">
-                                {store.mode === 'homological' ? 'Homological' : 'Cohomological'}
-                            </label>
-                        </div>
-                        <div class="row">
-                            <button
-                                class="square"
-                                onClick={() => setStore(store => ({ ...store, r: store.r - 1 }))}
-                            >
-                                <div class="icon">remove</div>
-                            </button>
-                            <input
-                                id="sequence-page"
-                                type="number"
-                                class="fill"
-                                value={store.r}
-                                onInput={e =>
-                                    setStore(store => ({ ...store, r: e.currentTarget.valueAsNumber }))
-                                }
-                            />
-                            <button
-                                class="square"
-                                onClick={() => setStore(store => ({ ...store, r: store.r + 1 }))}
-                            >
-                                <div class="icon">add</div>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="option">
-                        <h4>Toggles</h4>
-                        <div class="row">
-                            <input
-                                type="checkbox"
-                                id="option-show-dot-grid"
-                                checked={store.options.showDotGrid}
-                                onInput={e =>
-                                    setOptions(options => ({
-                                        ...options,
-                                        showDotGrid: e.currentTarget.checked,
-                                    }))
-                                }
-                            />
-                            <label for="option-show-dot-grid">Dot Grid</label>
-                        </div>
-                        <div class="row">
-                            <input
-                                type="checkbox"
-                                id="option-show-axes"
-                                checked={store.options.showAxes}
-                                onInput={e =>
-                                    setOptions(options => ({ ...options, showAxes: e.currentTarget.checked }))
-                                }
-                            />
-                            <label for="option-show-axes">Axes</label>
-                        </div>
-                        <div class="row">
-                            <input
-                                type="checkbox"
-                                id="option-show-page-arrows"
-                                checked={store.options.showDifferentials}
-                                onInput={e =>
-                                    setOptions(options => ({
-                                        ...options,
-                                        showDifferentials: e.currentTarget.checked,
-                                    }))
-                                }
-                            />
-                            <label for="option-show-page-arrows">Differentials</label>
-                        </div>
-                        <div class="row">
-                            <input
-                                type="checkbox"
-                                id="option-show-extra-arrows"
-                                checked={store.options.showExtraArrows}
-                                onInput={e =>
-                                    setOptions(options => ({
-                                        ...options,
-                                        showExtraArrows: e.currentTarget.checked,
-                                    }))
-                                }
-                            />
-                            <label for="option-show-extra-arrows">Extra Arrows</label>
-                        </div>
-                    </div>
-                    <hr />
-                    <div class="option">
-                        <h3>Extra Arrows</h3>
-                        <p>
-                            To add an arrow, drag from a cell to another cell while holding <kbd>Shift</kbd>.
-                        </p>
-                        {store.extraArrows.map(
-                            ([{ x: startCellX, y: startCellY }, { x: endCellX, y: endCellY }]) => (
-                                <div class="row">
-                                    <div class="fill">
-                                        <Katex
-                                            value={`(${startCellX},${startCellY}) \\to (${endCellX},${endCellY})`}
-                                        />
-                                    </div>
-                                    <button class="square">
-                                        <div class="icon">delete</div>
-                                    </button>
-                                </div>
-                            )
-                        )}
-                        <div class="row">
-                            <button
-                                id="sequence-clear-extra-arrows-btn"
-                                onClick={() => setStore({ ...store, extraArrows: [] })}
-                            >
-                                <div class="icon">delete</div>
-                                Clear Arrows
-                            </button>
-                        </div>
-                    </div>
-                    <hr />
-                    <div class="option">
-                        <h3>Actions</h3>
-                        <div class="row">
-                            <button
-                                id="sequence-clear-btn"
-                                onClick={() => {
-                                    setStore({ ...store, grid: new InfiniteGrid() })
-                                }}
-                            >
-                                <div class="icon">delete</div>
-                                Clear Grid
-                            </button>
-                            <button
-                                class="primary"
-                                id="sequence-export-btn"
-                                onClick={handleExportTikz}
-                            >
-                                <div class="icon">exit_to_app</div>
-                                Export <em>tikzcd</em>
-                            </button>
-                        </div>
-                    </div>
-                    <hr />
-                </div>
-                <div class="options-side-buttons">
-                    <button
-                        class="square"
-                        onClick={() =>
-                            setOptions(options => ({ ...options, showOptions: !options.showOptions }))
-                        }
-                    >
-                        <div class="icon">{store.options.showOptions ? 'chevron_left' : 'chevron_right'}</div>
-                    </button>
-                </div>
+                <Options
+                    // Sidebar visibility
+                    isOpen={store.options.showOptions}
+                    toggleIsOpen={() =>
+                        setOptions(options => ({ ...options, showOptions: !options.showOptions }))
+                    }
+                    // Editor parameters
+                    r={store.r}
+                    setR={r => setStore(store => ({ ...store, r: applyUpdater(r, store.r) }))}
+                    mode={store.mode}
+                    setMode={mode => setStore(store => ({ ...store, mode: applyUpdater(mode, store.mode) }))}
+                    // Show options
+                    showDotGrid={store.options.showDotGrid}
+                    setShowDotGrid={showDotGrid =>
+                        setOptions(options => ({
+                            ...options,
+                            showDotGrid: applyUpdater(showDotGrid, options.showDotGrid),
+                        }))
+                    }
+                    showAxes={store.options.showAxes}
+                    setShowAxes={showAxes =>
+                        setOptions(options => ({
+                            ...options,
+                            showAxes: applyUpdater(showAxes, options.showAxes),
+                        }))
+                    }
+                    showDifferentials={store.options.showDifferentials}
+                    setShowDifferentials={showDifferentials =>
+                        setOptions(options => ({
+                            ...options,
+                            showDifferentials: applyUpdater(showDifferentials, options.showDifferentials),
+                        }))
+                    }
+                    showExtraArrows={store.options.showExtraArrows}
+                    setShowExtraArrows={showExtraArrows =>
+                        setOptions(options => ({
+                            ...options,
+                            showExtraArrows: applyUpdater(showExtraArrows, options.showExtraArrows),
+                        }))
+                    }
+                    // Extra arrows
+                    extraArrows={store.extraArrows}
+                    setExtraArrows={extraArrows =>
+                        setStore(store => ({
+                            ...store,
+                            extraArrows: applyUpdater(extraArrows, store.extraArrows),
+                        }))
+                    }
+                    // Actions
+                    clearGrid={() => setStore(store => ({ ...store, grid: new InfiniteGrid<string>() }))}
+                    handleExportTikz={handleExportTikz}
+                />
                 <Canvas
                     store={store}
                     setStore={setStore}
@@ -476,16 +351,14 @@ const App = () => {
                         <div class="actions">
                             <div class="row">
                                 <button onClick={() => ($exportedCode.value = null)}>
-                                    <div class="icon">close</div>
+                                    <Icon name="close" />
                                     Close
                                 </button>
                                 <button
                                     class="primary"
-                                    onClick={() => {
-                                        navigator.clipboard.writeText($exportedCode.value!)
-                                    }}
+                                    onClick={() => navigator.clipboard.writeText($exportedCode.value!)}
                                 >
-                                    <div class="icon">content_copy</div>
+                                    <Icon name="content_copy" />
                                     Copy
                                 </button>
                             </div>
