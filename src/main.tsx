@@ -1,7 +1,15 @@
 import { useSignal } from '@preact/signals'
 import clsx from 'clsx'
 import { Ref, render } from 'preact'
-import { Dispatch, StateUpdater, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
+import {
+    Dispatch,
+    StateUpdater,
+    useCallback,
+    useEffect,
+    useLayoutEffect,
+    useRef,
+    useState,
+} from 'preact/hooks'
 
 import { useEventListener, useMouse, usePannable } from '@/hooks'
 import { convertRemToPixels } from '@/utils'
@@ -170,7 +178,10 @@ const Canvas = ({ store, setStore }: { store: Store; setStore: Dispatch<StateUpd
     }, [])
 
     return (
-        <div class="canvas" style={{ '--pan-x': pan.x, '--pan-y': pan.y }}>
+        <div
+            class="canvas"
+            style={{ '--pan-x': pan.x, '--pan-y': pan.y }}
+        >
             <MemoCanvas canvasRef={canvasRefCallback} />
             <div
                 class="cells"
@@ -277,8 +288,9 @@ const App = () => {
                     </section>
                     <hr />
                     <p>
-                        To create a new cell, double click on an empty dot. To edit a cell, double click on it. To
-                        connect two cells with an arrow, drag from one cell to another while holding <kbd>Shift</kbd>.
+                        To create a new cell, double click on an empty dot. To edit a cell, double click on
+                        it. To connect two cells with an arrow, drag from one cell to another while holding{' '}
+                        <kbd>Shift</kbd>.
                     </p>
                     <hr />
                     <h3>Options</h3>
@@ -302,7 +314,10 @@ const App = () => {
                             </label>
                         </div>
                         <div class="row">
-                            <button class="square" onClick={() => setStore(store => ({ ...store, r: store.r - 1 }))}>
+                            <button
+                                class="square"
+                                onClick={() => setStore(store => ({ ...store, r: store.r - 1 }))}
+                            >
                                 <div class="icon">remove</div>
                             </button>
                             <input
@@ -310,9 +325,14 @@ const App = () => {
                                 type="number"
                                 class="fill"
                                 value={store.r}
-                                onInput={e => setStore(store => ({ ...store, r: e.currentTarget.valueAsNumber }))}
+                                onInput={e =>
+                                    setStore(store => ({ ...store, r: e.currentTarget.valueAsNumber }))
+                                }
                             />
-                            <button class="square" onClick={() => setStore(store => ({ ...store, r: store.r + 1 }))}>
+                            <button
+                                class="square"
+                                onClick={() => setStore(store => ({ ...store, r: store.r + 1 }))}
+                            >
                                 <div class="icon">add</div>
                             </button>
                         </div>
@@ -325,7 +345,10 @@ const App = () => {
                                 id="option-show-dot-grid"
                                 checked={store.options.showDotGrid}
                                 onInput={e =>
-                                    setOptions(options => ({ ...options, showDotGrid: e.currentTarget.checked }))
+                                    setOptions(options => ({
+                                        ...options,
+                                        showDotGrid: e.currentTarget.checked,
+                                    }))
                                 }
                             />
                             <label for="option-show-dot-grid">Dot Grid</label>
@@ -347,7 +370,10 @@ const App = () => {
                                 id="option-show-page-arrows"
                                 checked={store.options.showDifferentials}
                                 onInput={e =>
-                                    setOptions(options => ({ ...options, showDifferentials: e.currentTarget.checked }))
+                                    setOptions(options => ({
+                                        ...options,
+                                        showDifferentials: e.currentTarget.checked,
+                                    }))
                                 }
                             />
                             <label for="option-show-page-arrows">Differentials</label>
@@ -358,7 +384,10 @@ const App = () => {
                                 id="option-show-extra-arrows"
                                 checked={store.options.showExtraArrows}
                                 onInput={e =>
-                                    setOptions(options => ({ ...options, showExtraArrows: e.currentTarget.checked }))
+                                    setOptions(options => ({
+                                        ...options,
+                                        showExtraArrows: e.currentTarget.checked,
+                                    }))
                                 }
                             />
                             <label for="option-show-extra-arrows">Extra Arrows</label>
@@ -370,16 +399,20 @@ const App = () => {
                         <p>
                             To add an arrow, drag from a cell to another cell while holding <kbd>Shift</kbd>.
                         </p>
-                        {store.extraArrows.map(([{ x: startCellX, y: startCellY }, { x: endCellX, y: endCellY }]) => (
-                            <div class="row">
-                                <div class="fill">
-                                    <Katex value={`(${startCellX},${startCellY}) \\to (${endCellX},${endCellY})`} />
+                        {store.extraArrows.map(
+                            ([{ x: startCellX, y: startCellY }, { x: endCellX, y: endCellY }]) => (
+                                <div class="row">
+                                    <div class="fill">
+                                        <Katex
+                                            value={`(${startCellX},${startCellY}) \\to (${endCellX},${endCellY})`}
+                                        />
+                                    </div>
+                                    <button class="square">
+                                        <div class="icon">delete</div>
+                                    </button>
                                 </div>
-                                <button class="square">
-                                    <div class="icon">delete</div>
-                                </button>
-                            </div>
-                        ))}
+                            )
+                        )}
                         <div class="row">
                             <button
                                 id="sequence-clear-extra-arrows-btn"
@@ -403,7 +436,11 @@ const App = () => {
                                 <div class="icon">delete</div>
                                 Clear Grid
                             </button>
-                            <button class="primary" id="sequence-export-btn" onClick={handleExportTikz}>
+                            <button
+                                class="primary"
+                                id="sequence-export-btn"
+                                onClick={handleExportTikz}
+                            >
                                 <div class="icon">exit_to_app</div>
                                 Export <em>tikzcd</em>
                             </button>
@@ -414,12 +451,17 @@ const App = () => {
                 <div class="options-side-buttons">
                     <button
                         class="square"
-                        onClick={() => setOptions(options => ({ ...options, showOptions: !options.showOptions }))}
+                        onClick={() =>
+                            setOptions(options => ({ ...options, showOptions: !options.showOptions }))
+                        }
                     >
                         <div class="icon">{store.options.showOptions ? 'chevron_left' : 'chevron_right'}</div>
                     </button>
                 </div>
-                <Canvas store={store} setStore={setStore} />
+                <Canvas
+                    store={store}
+                    setStore={setStore}
+                />
             </main>
             {$exportedCode.value && (
                 <div class="modal-container">

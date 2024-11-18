@@ -10,7 +10,7 @@ export function drawLatexArrow(
     g: CanvasRenderingContext2D,
     { x: x1, y: y1 }: Coord2i,
     { x: x2, y: y2 }: Coord2i,
-    { contractEnds }: DrawLatexArrowOptions = {}
+    { contractEnds }: DrawLatexArrowOptions = {},
 ) {
     if (contractEnds !== undefined) {
         // contract the ends of the arrow
@@ -76,7 +76,7 @@ export function renderArrows<T>(
     /**
      * Used to highlight the currently hovered chain.
      */
-    activeChain: Coord2i | null
+    activeChain: Coord2i | null,
 ) {
     for (const [[p, q]] of grid) {
         const [prevX, prevY] = elemAlongChain(-1, { r, p, q })
@@ -96,7 +96,11 @@ export function renderArrows<T>(
                       [nextX, nextY],
                   ]
 
-        g.strokeStyle = isActiveChain(activeChain ? { r, p: activeChain.x, q: activeChain.y } : null, { r, p, q })
+        g.strokeStyle = isActiveChain(activeChain ? { r, p: activeChain.x, q: activeChain.y } : null, {
+            r,
+            p,
+            q,
+        })
             ? '#333'
             : '#999'
 
@@ -107,7 +111,7 @@ export function renderArrows<T>(
                 g,
                 { x: x1 * cellSize, y: y1 * cellSize },
                 { x: x2 * cellSize, y: y2 * cellSize },
-                { contractEnds: 0.35 * cellSize }
+                { contractEnds: 0.35 * cellSize },
             )
         }
 
@@ -116,7 +120,7 @@ export function renderArrows<T>(
                 g,
                 { x: x2 * cellSize, y: y2 * cellSize },
                 { x: x3 * cellSize, y: y3 * cellSize },
-                { contractEnds: 0.35 * cellSize }
+                { contractEnds: 0.35 * cellSize },
             )
         }
     }
@@ -157,7 +161,7 @@ export function drawCanvas(
 
         mouse: Coord2i & { buttons: number }
         connectArrowStartCell: Coord2i | null
-    } & EditorOptions
+    } & EditorOptions,
 ) {
     const untrasform = ({ x, y }: Coord2i) => {
         return {
@@ -208,7 +212,8 @@ export function drawCanvas(
     if (
         !panning &&
         !grid.has(mouseCellX, mouseCellY) &&
-        Math.sqrt((mouseCellX * gridSize - mouseX) ** 2 + (mouseCellY * gridSize - mouseY) ** 2) < gridSize / 2
+        Math.sqrt((mouseCellX * gridSize - mouseX) ** 2 + (mouseCellY * gridSize - mouseY) ** 2) <
+            gridSize / 2
     ) {
         const RADIUS = gridSize * 0.25
 
@@ -222,8 +227,16 @@ export function drawCanvas(
     if (showAxes) {
         g.strokeStyle = '#333'
         g.lineWidth = 1 * window.devicePixelRatio
-        drawLatexArrow(g, { x: -0.5 * gridSize, y: -0.5 * gridSize }, { x: 3.5 * gridSize, y: -0.5 * gridSize })
-        drawLatexArrow(g, { x: -0.5 * gridSize, y: -0.5 * gridSize }, { x: -0.5 * gridSize, y: 3.5 * gridSize })
+        drawLatexArrow(
+            g,
+            { x: -0.5 * gridSize, y: -0.5 * gridSize },
+            { x: 3.5 * gridSize, y: -0.5 * gridSize },
+        )
+        drawLatexArrow(
+            g,
+            { x: -0.5 * gridSize, y: -0.5 * gridSize },
+            { x: -0.5 * gridSize, y: 3.5 * gridSize },
+        )
     }
 
     // Spectral sequence default arrows
@@ -260,7 +273,7 @@ export function drawCanvas(
                 x: mouseCellX * gridSize,
                 y: mouseCellY * gridSize,
             },
-            { contractEnds: 0.15 * gridSize }
+            { contractEnds: 0.15 * gridSize },
         )
     }
 }

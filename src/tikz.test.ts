@@ -25,7 +25,7 @@ describe('TikZ', () => {
                 showAxes: true,
                 showDifferentials: true,
                 showExtraArrows: true,
-            }
+            },
         )
 
         console.log(source)

@@ -69,7 +69,7 @@ export function generateTikz(grid: Grid<string>, extraArrows: Arrow[], options: 
     ]
 
     const tikzMatrix = Array.from({ length: qRange + 1 }, () =>
-        Array.from({ length: pRange + 1 }, () => String.raw`\vphantom{.}`)
+        Array.from({ length: pRange + 1 }, () => String.raw`\vphantom{.}`),
     )
 
     for (const [[p, q], value] of gridCells) {
@@ -89,7 +89,7 @@ export function generateTikz(grid: Grid<string>, extraArrows: Arrow[], options: 
     const minHeightEx = opts.minimumHeightEx
 
     tikzSource += line(
-        String.raw`nodes={minimum width=${minWidthEx}ex, minimum height=${minHeightEx}ex, anchor=center},`
+        String.raw`nodes={minimum width=${minWidthEx}ex, minimum height=${minHeightEx}ex, anchor=center},`,
     )
     tikzSource += line(String.raw`column sep=${opts.columnSepEx}ex,`)
     tikzSource += line(String.raw`row sep=${opts.rowSepEx}ex`)
@@ -195,9 +195,10 @@ export function generateTikz(grid: Grid<string>, extraArrows: Arrow[], options: 
     tikzSource += line(String.raw`% Arrows`)
     for (const [{ x: startP, y: startQ }, { x: endP, y: endQ }] of extraArrows) {
         tikzSource += line(
-            String.raw`\draw[->] (m-${mapPQtoCell([startP, startQ]).join('-')}) -- (m-${mapPQtoCell([endP, endQ]).join(
-                '-'
-            )});`
+            String.raw`\draw[->] (m-${mapPQtoCell([startP, startQ]).join('-')}) -- (m-${mapPQtoCell([
+                endP,
+                endQ,
+            ]).join('-')});`,
         )
     }
 
@@ -209,10 +210,10 @@ export function generateTikz(grid: Grid<string>, extraArrows: Arrow[], options: 
     tikzSource += line(String.raw`% Axes`)
 
     tikzSource += line(
-        String.raw`\draw[thick] ([xshift=-1ex,yshift=-1ex]m-${oX}-${oY}.south west) -- ([xshift=-1ex,yshift=30ex]m-${oX}-${oY}.south west);`
+        String.raw`\draw[thick] ([xshift=-1ex,yshift=-1ex]m-${oX}-${oY}.south west) -- ([xshift=-1ex,yshift=30ex]m-${oX}-${oY}.south west);`,
     )
     tikzSource += line(
-        String.raw`\draw[thick] ([xshift=-1ex,yshift=-1ex]m-${oX}-${oY}.south west) -- ([xshift=30ex,yshift=-1ex]m-${oX}-${oY}.south west);`
+        String.raw`\draw[thick] ([xshift=-1ex,yshift=-1ex]m-${oX}-${oY}.south west) -- ([xshift=30ex,yshift=-1ex]m-${oX}-${oY}.south west);`,
     )
 
     tikzSource += line(String.raw`\end{tikzpicture}`)
