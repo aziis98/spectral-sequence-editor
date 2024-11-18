@@ -1,6 +1,6 @@
 import { Grid } from '@/grid'
 import { Arrow, EditorOptions } from '@/store'
-import { SpectralSequenceIndex as SpectralSequenceCoord, Coord2i } from './math'
+import { SpectralSequenceCoord, Coord2i, elemAlongChain } from './math'
 
 type DrawLatexArrowOptions = {
     contractEnds?: number
@@ -79,21 +79,21 @@ export function renderArrows<T>(
     activeChain: Coord2i | null
 ) {
     for (const [[p, q]] of grid) {
-        const [prevX, prevY] = [p + r, q - r + 1]
+        const [prevX, prevY] = elemAlongChain(-1, { r, p, q })
         const [currX, currY] = [p, q]
-        const [nextX, nextY] = [p - r, q + r - 1]
+        const [nextX, nextY] = elemAlongChain(+1, { r, p, q })
 
         const [[x1, y1], [x2, y2], [x3, y3]] =
             mode === 'homological'
                 ? [
-                      [prevX, prevY],
-                      [currX, currY],
                       [nextX, nextY],
+                      [currX, currY],
+                      [prevX, prevY],
                   ]
                 : [
-                      [nextX, nextY],
-                      [currX, currY],
                       [prevX, prevY],
+                      [currX, currY],
+                      [nextX, nextY],
                   ]
 
         g.strokeStyle = isActiveChain(activeChain ? { r, p: activeChain.x, q: activeChain.y } : null, { r, p, q })
@@ -102,14 +102,16 @@ export function renderArrows<T>(
 
         g.lineWidth = 1.5
 
-        drawLatexArrow(
-            g,
-            { x: x1 * cellSize, y: y1 * cellSize },
-            { x: x2 * cellSize, y: y2 * cellSize },
-            { contractEnds: 0.35 * cellSize }
-        )
+        if (mode === 'homological' || !grid.has(x1, y1)) {
+            drawLatexArrow(
+                g,
+                { x: x1 * cellSize, y: y1 * cellSize },
+                { x: x2 * cellSize, y: y2 * cellSize },
+                { contractEnds: 0.35 * cellSize }
+            )
+        }
 
-        if (!grid.has(nextX, nextY)) {
+        if (mode === 'cohomological' || !grid.has(x3, y3)) {
             drawLatexArrow(
                 g,
                 { x: x2 * cellSize, y: y2 * cellSize },

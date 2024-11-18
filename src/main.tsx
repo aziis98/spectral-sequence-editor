@@ -246,10 +246,10 @@ const App = () => {
 
     useEffect(() => {
         setStore(store => {
-            store.grid.set(0, 0, 'E_0^{0,0}')
-            store.grid.set(1, 0, 'E_0^{1,0}')
-            store.grid.set(0, 1, 'E_0^{0,1}')
-            store.grid.set(2, 2, 'E_0^{2,2}')
+            store.grid.set(0, 0, 'E_{0,0}^0')
+            store.grid.set(1, 0, 'E_{1,0}^0')
+            store.grid.set(0, 1, 'E_{0,1}^0')
+            store.grid.set(2, 2, 'E_{2,2}^0')
             // store.grid.set(-3, 2, 'E_0^{-3,2}')
 
             return { ...store }
@@ -258,6 +258,9 @@ const App = () => {
 
     const handleExportTikz = () => {
         $exportedCode.value = generateTikz(store.grid, store.extraArrows, {
+            r: store.r,
+            mode: store.mode,
+
             ...store.options,
         })
     }

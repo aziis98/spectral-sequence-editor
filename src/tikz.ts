@@ -28,6 +28,7 @@ Prototype TikZ code:
 
 import { Grid } from '@/grid'
 import { Arrow } from '@/store'
+import { inRange } from './math'
 
 type GenTikzOptions = Partial<typeof GEN_TIKZ_OPTIONS>
 
@@ -40,10 +41,11 @@ const GEN_TIKZ_OPTIONS = {
     showDifferentials: true,
     showExtraArrows: true,
 
+    extraRange: 1,
     minimumWidthEx: 5,
     minimumHeightEx: 5,
-    columnSepEx: 1,
-    rowSepEx: 1,
+    columnSepEx: 2,
+    rowSepEx: 2,
 }
 
 const line = (s: string = '') => s + '\n'
@@ -52,10 +54,10 @@ export function generateTikz(grid: Grid<string>, extraArrows: Arrow[], options: 
     const opts = { ...GEN_TIKZ_OPTIONS, ...options }
 
     const gridCells = [...grid]
-    const pMin = Math.min(0, ...gridCells.map(([[p, _]]) => p))
-    const pMax = Math.max(...gridCells.map(([[p, _]]) => p))
-    const qMin = Math.min(0, ...gridCells.map(([[_, q]]) => q)) - 1
-    const qMax = Math.max(...gridCells.map(([[_, q]]) => q))
+    const pMin = Math.min(0, ...gridCells.map(([[p, _]]) => p)) - opts.extraRange
+    const pMax = Math.max(...gridCells.map(([[p, _]]) => p)) + opts.extraRange
+    const qMin = Math.min(0, ...gridCells.map(([[_, q]]) => q)) - Math.max(1, opts.extraRange)
+    const qMax = Math.max(...gridCells.map(([[_, q]]) => q)) + opts.extraRange
 
     const pRange = pMax - pMin + 1
     const qRange = qMax - qMin + 1
@@ -161,14 +163,30 @@ export function generateTikz(grid: Grid<string>, extraArrows: Arrow[], options: 
                       [prevX, prevY],
                   ]
 
-        tikzSource += line(
-            String.raw`\draw[->] (m-${mapPQtoCell([x1, y1]).join('-')}) -- (m-${mapPQtoCell([x2, y2]).join('-')});`
-        )
+        const [cell_x1, cell_y1] = mapPQtoCell([x1, y1])
+        const [cell_x2, cell_y2] = mapPQtoCell([x2, y2])
+        const [cell_x3, cell_y3] = mapPQtoCell([x3, y3])
 
-        if (!grid.has(nextX, nextY)) {
-            tikzSource += line(
-                String.raw`\draw[->] (m-${mapPQtoCell([x2, y2]).join('-')}) -- (m-${mapPQtoCell([x3, y3]).join('-')});`
-            )
+        console.log(qRange, pRange)
+        console.log('differential', '->', [cell_x1, cell_y1], [cell_x2, cell_y2], [cell_x3, cell_y3])
+
+        // if (cell_x1 > 0 && cell_x1 < qRange && cell_y1 > 0 && cell_y1 < pRange) {
+        if (
+            inRange(1, cell_x1, qRange) &&
+            inRange(1, cell_y1, pRange) &&
+            inRange(1, cell_x2, qRange) &&
+            inRange(1, cell_y2, pRange)
+        ) {
+            tikzSource += line(String.raw`\draw[->] (m-${cell_x1}-${cell_y1}) -- (m-${cell_x2}-${cell_y2});`)
+        }
+
+        if (
+            inRange(1, cell_x3, qRange) &&
+            inRange(1, cell_y3, pRange) &&
+            inRange(1, cell_x2, qRange) &&
+            inRange(1, cell_y2, pRange)
+        ) {
+            tikzSource += line(String.raw`\draw[->] (m-${cell_x2}-${cell_y2}) -- (m-${cell_x3}-${cell_y3});`)
         }
     }
 
